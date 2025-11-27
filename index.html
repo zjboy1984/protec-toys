@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字玩具大保卫 - 策略挑战版 (放置限制 & 难度升级)</title>
+    <style>
+        /* (样式部分基本不变，微调了任务栏宽度适应新文字) */
+        body {
+            font-family: 'Comic Sans MS', 'Arial Rounded MT Bold', sans-serif;
+            background-color: #f0f8ff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 10px; 
+            user-select: none;
+        }
+
+        h1 { color: #ff6b6b; margin-bottom: 5px; }
+        #game-info { font-size: 20px; margin-bottom: 5px; color: #333; }
+        .heart { color: red; }
+
+        /* 波次任务进度样式 */
+        #wave-quest-progress {
+            font-size: 16px; /* 稍微调小字体以放下更多内容 */
+            margin-bottom: 10px;
+            padding: 5px 15px;
+            background-color: #fff3cd;
+            border: 2px solid #ffecb5;
+            border-radius: 10px;
+            color: #856404;
+            display: flex;
+            gap: 10px;
+        }
+        .quest-group { display: flex; flex-direction: column; align-items: center; background: rgba(255,255,255,0.5); padding: 2px 5px; border-radius: 5px;}
+        .quest-item { margin: 0 2px; font-size: 14px;}
+        .status-done { color: green; font-weight: bold; }
+        .status-todo { color: red; }
+        .status-placed { color: blue; font-weight: bold; } /* 【新增】已放置状态颜色 */
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            background-color: #a3d9a5; 
+        }
+
+        canvas {
+            display: block;
+            cursor: crosshair;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: space-around;
+            box-sizing: border-box;
+        }
+
+        .btn {
+            padding: 10px 20px; 
+            font-size: 18px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px #999;
+            transition: all 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn span.icon-placeholder { display: inline-block; width: 25px; text-align: center;}
+        .btn:active { transform: translateY(4px); box-shadow: 0 1px #999; }
+
+        #btn-tier1 { background-color: #4CAF50; color: white; }
+        #btn-tier2 { background-color: #2196F3; color: white; }
+        #btn-tier3 { background-color: #F44336; color: white; }
+        #btn-start { background-color: #FFC107; color: black; font-size: 20px;}
+
+        #math-modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modal-content {
+            background-color: #fffbe0;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            border: 5px solid #ffb74d;
+            box-shadow: 0 0 30px rgba(255, 183, 77, 0.8);
+        }
+
+        #question-text { font-size: 40px; margin-bottom: 30px; color: #333; }
+        #question-visual { font-size: 50px; margin-bottom: 20px; }
+
+        .answer-btn {
+            margin: 10px;
+            padding: 15px 30px;
+            font-size: 35px;
+            background-color: #ffeb3b;
+            border: 3px solid #fbc02d;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+        .answer-btn:hover { background-color: #fff176; }
+
+        #instruction { color: #666; margin-bottom: 5px; font-weight: bold; font-size: 14px;}
+        .highlight-text { color: #ff6b6b; }
+        
+        #loading-screen {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: #a3d9a5; color: white; font-size: 30px;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 50;
+            flex-direction: column;
+        }
+        #loading-tips { font-size: 16px; margin-top: 20px; color: #eee; }
+
+    </style>
+</head>
+<body>
+
+    <h1>数字玩具大保卫</h1>
+    <div id="instruction">规则升级：<span class="highlight-text">每一波攻击，每种类型的玩具只能放置一次！</span>(且需先完成答题任务)</div>
+    <div id="game-info">
+        爱心: <span id="lives-display">❤️❤️❤️❤️❤️</span> | 波次: <span id="wave-display">1</span>
+    </div>
+
+    <div id="wave-quest-progress">
+        <div>本波状态:</div>
+        <div class="quest-group">简单 <span class="quest-item">任务[<span id="q1-quest" class="status-todo">✗</span>]</span><span class="quest-item">已放[<span id="q1-placed" class="status-todo">✗</span>]</span></div>
+        <div class="quest-group">中等 <span class="quest-item">任务[<span id="q2-quest" class="status-todo">✗</span>]</span><span class="quest-item">已放[<span id="q2-placed" class="status-todo">✗</span>]</span></div>
+        <div class="quest-group">困难 <span class="quest-item">任务[<span id="q3-quest" class="status-todo">✗</span>]</span><span class="quest-item">已放[<span id="q3-placed" class="status-todo">✗</span>]</span></div>
+    </div>
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="loading-screen">
+            <div>正在加载游戏素材...</div>
+            <div id="loading-tips">如果图片加载失败，将使用替代图形，游戏仍可进行。</div>
+        </div>
+        
+        <div id="ui-overlay">
+            <button id="btn-tier1" class="btn" onclick="askQuestion(1)"><span class="icon-placeholder">🐻</span> 简单</button>
+            <button id="btn-tier2" class="btn" onclick="askQuestion(2)"><span class="icon-placeholder">🦆</span> 中等</button>
+            <button id="btn-tier3" class="btn" onclick="askQuestion(3)"><span class="icon-placeholder">❄️</span> 困难</button>
+            <div style="flex-grow: 1;"></div>
+            <button id="btn-start" class="btn" onclick="startNextWave()">▶ 开始下一波进攻</button>
+        </div>
+    </div>
+
+    <div id="math-modal">
+        <div id="modal-content">
+            <div id="question-visual"></div>
+            <div id="question-text">题目加载中...</div>
+            <div id="answers-container"></div>
+        </div>
+    </div>
+
+<script>
+    // --- 图片资源管理 (保持不变) ---
+    const ASSETS_URLS = {
+        grass: '/images/grass.jpg', 
+        pathTexture: '/images/road.jpg',
+        toybox: '/images/gamebox.png',
+        monster: '/images/thief.png',
+        teddy: '/images/teddy-bear.png', 
+        duck: '/images/rubber-duck.png', 
+        freezer: '/images/freezer-safe.png' 
+    };
+
+    const loadedImages = {};
+    let assetsLoadedCount = 0;
+    const totalAssets = Object.keys(ASSETS_URLS).length;
+
+    function preloadAssets(callback) {
+        for (let key in ASSETS_URLS) {
+            const img = new Image();
+            img.loadedSuccessfully = false; 
+            img.onload = () => {
+                img.loadedSuccessfully = true;
+                assetsLoadedCount++;
+                checkAllLoaded(callback);
+            };
+            img.onerror = () => {
+                console.warn(`图片加载失败: ${key} (${ASSETS_URLS[key]})。将使用替代图形。`);
+                img.loadedSuccessfully = false;
+                assetsLoadedCount++;
+                checkAllLoaded(callback);
+            };
+            img.crossOrigin = "Anonymous";
+            img.src = ASSETS_URLS[key];
+            loadedImages[key] = img;
+        }
+    }
+
+    function checkAllLoaded(callback) {
+        if (assetsLoadedCount === totalAssets) {
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.display = 'none';
+                callback(); 
+            }, 500);
+        }
+    }
+
+
+    // --- 游戏配置与全局变量 ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const GAME_WIDTH = canvas.width;
+    const GAME_HEIGHT = canvas.height;
+
+    let gameState = 'PREP';
+    let lives = 5;
+    let wave = 1;
+    let placingTowerTier = 0;
+
+    // 用于记录当前波次三种难度的题目是否已回答正确
+    let waveQuestStatus = { 1: false, 2: false, 3: false };
+    // 【新增】用于记录当前波次三种难度的塔是否已经放置在地图上
+    let wavePlacementStatus = { 1: false, 2: false, 3: false };
+
+    let towers = [];
+    let enemies = [];
+    let projectiles = [];
+
+    const path = [
+        {x: 0, y: 150}, {x: 650, y: 150},
+        {x: 650, y: 450}, {x: 150, y: 450},
+        {x: 150, y: 300}, {x: 800, y: 300}
+    ];
+    const PATH_WIDTH = 60;
+
+    const TOWER_STATS = {
+        1: { color: '#4CAF50', range: 120, damage: 30, cooldown: 60, name: "泰迪熊", imgKey: 'teddy' },
+        2: { color: '#2196F3', range: 150, damage: 50, cooldown: 50, name: "橡皮鸭", imgKey: 'duck' },
+        3: { color: '#F44336', range: 180, damage: 80, cooldown: 40, name: "冷冻机", imgKey: 'freezer' }
+    };
+
+    // --- 核心逻辑类 (Tower, Enemy, Projectile) 保持不变 ---
+    class Tower {
+        constructor(x, y, tier) {
+            this.x = x; this.y = y; this.tier = tier;
+            this.stats = TOWER_STATS[tier]; this.fireTimer = 0; this.radius = 25; 
+            this.image = loadedImages[this.stats.imgKey];
+        }
+        update() {
+            if (this.fireTimer > 0) this.fireTimer--;
+            if (this.fireTimer === 0 && enemies.length > 0) {
+                const target = this.findTarget();
+                if (target) { this.fire(target); this.fireTimer = this.stats.cooldown; }
+            }
+        }
+        findTarget() {
+            let closestEnemy = null; let minDistance = this.stats.range;
+            for (const enemy of enemies) {
+                if (enemy.health <= 0) continue;
+                const dx = enemy.x - this.x; const dy = enemy.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < minDistance) { closestEnemy = enemy; minDistance = distance; }
+            }
+            return closestEnemy;
+        }
+        fire(target) { projectiles.push(new Projectile(this.x, this.y, target, this.stats.damage, this.stats.color)); }
+        draw() {
+            if (this.image && this.image.loadedSuccessfully) {
+                ctx.drawImage(this.image, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+            } else {
+                ctx.fillStyle = this.stats.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+            }
+        }
+    }
+
+    class Enemy {
+        constructor(health, speed, defense) {
+            this.x = path[0].x; this.y = path[0].y; this.pathIndex = 0;
+            this.health = health; this.maxHealth = health; this.speed = speed;
+            this.defense = defense; 
+            this.size = 60; 
+            this.color = '#888'; 
+            this.image = loadedImages['monster'];
+        }
+        update() {
+            if (this.health <= 0) return true;
+            if (this.pathIndex < path.length - 1) {
+                let target = path[this.pathIndex + 1];
+                let dx = target.x - this.x; let dy = target.y - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < this.speed) { this.pathIndex++; } else { this.x += (dx / distance) * this.speed; this.y += (dy / distance) * this.speed; }
+            } else { lives--; updateUI(); return true; }
+            return false;
+        }
+        draw() {
+            if (this.image && this.image.loadedSuccessfully) {
+                ctx.drawImage(this.image, this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+            } else {
+                ctx.fillStyle = this.color; 
+                ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+            }
+            ctx.fillStyle = 'red'; ctx.fillRect(this.x - this.size/2, this.y - this.size/2 - 10, this.size, 5);
+            ctx.fillStyle = '#0f0'; ctx.fillRect(this.x - this.size/2, this.y - this.size/2 - 10, this.size * (this.health / this.maxHealth), 5);
+        }
+    }
+
+    class Projectile {
+        constructor(x, y, target, damage, color) {
+            this.x = x; this.y = y; this.target = target; this.damage = damage; this.color = color; this.speed = 10; this.markedForDeletion = false;
+        }
+        update() {
+            if(this.target.health <=0) { this.markedForDeletion = true; return; }
+            let dx = this.target.x - this.x; let dy = this.target.y - this.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < this.speed + this.target.size/2) { 
+                let actualDamage = Math.max(1, this.damage - this.target.defense);
+                this.target.health -= actualDamage; 
+                this.markedForDeletion = true; 
+            } else { 
+                this.x += (dx / distance) * this.speed; this.y += (dy / distance) * this.speed; 
+            }
+        }
+        draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 8, 0, Math.PI * 2); ctx.fill(); }
+    }
+
+    // --- 游戏主循环 (保持不变) ---
+    function gameLoop() {
+        ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        drawMap(); 
+        if (lives <= 0) { drawGameOver(); return; }
+        for (let i = enemies.length - 1; i >= 0; i--) { if (enemies[i].update()) { enemies.splice(i, 1); } }
+        if (enemies.length === 0 && gameState === 'DEFEND') {
+            gameState = 'PREP'; wave++; 
+            // 【修改】波次结束，重置所有状态
+            resetWaveStates();
+            updateUI();
+            document.getElementById('btn-start').disabled = false; document.getElementById('btn-start').innerText = "▶ 开始下一波进攻";
+        }
+        enemies.forEach(e => e.draw());
+        towers.forEach(t => { t.update(); t.draw(); });
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            projectiles[i].update(); if (projectiles[i].markedForDeletion) projectiles.splice(i, 1);
+        }
+        projectiles.forEach(p => p.draw());
+        if (placingTowerTier > 0) { drawPlacementPreview(); }
+        requestAnimationFrame(gameLoop);
+    }
+
+    // --- 辅助函数 (绘图) (保持不变) ---
+    function drawMap() {
+        const grassImg = loadedImages.grass;
+        if (grassImg && grassImg.loadedSuccessfully) {
+            const grassPattern = ctx.createPattern(grassImg, 'repeat');
+            ctx.fillStyle = grassPattern;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        } else {
+            ctx.fillStyle = '#a3d9a5'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        }
+        ctx.lineWidth = PATH_WIDTH;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        const pathImg = loadedImages.pathTexture;
+        if (pathImg && pathImg.loadedSuccessfully) {
+            const pathPattern = ctx.createPattern(pathImg, 'repeat');
+            ctx.strokeStyle = pathPattern;
+        } else {
+            ctx.strokeStyle = '#c4a484';
+        }
+        ctx.beginPath();
+        ctx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) {
+            ctx.lineTo(path[i].x, path[i].y);
+        }
+        ctx.stroke();
+        const endPt = path[path.length-1];
+        const toyboxImg = loadedImages.toybox; 
+        if (toyboxImg && toyboxImg.loadedSuccessfully) {
+            const boxSize = 70; 
+            ctx.drawImage(toyboxImg, endPt.x - boxSize/2, endPt.y - boxSize/2, boxSize, boxSize);
+        } else {
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillRect(endPt.x - 30, endPt.y - 30, 60, 60);
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.strokeRect(endPt.x - 30, endPt.y - 30, 60, 60);
+        }
+    }
+    
+    function drawGameOver() {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0,0,GAME_WIDTH, GAME_HEIGHT);
+        ctx.fillStyle = 'white'; ctx.font = '50px Comic Sans MS'; ctx.textAlign = 'center';
+        ctx.fillText("玩具们累了，下次再玩吧！", GAME_WIDTH/2, GAME_HEIGHT/2);
+        ctx.font = '30px Comic Sans MS'; ctx.fillText("刷新页面重新开始", GAME_WIDTH/2, GAME_HEIGHT/2 + 50);
+    }
+
+    function drawPlacementPreview() {
+        const stats = TOWER_STATS[placingTowerTier];
+        const img = loadedImages[stats.imgKey];
+        const radius = 25;
+        ctx.font = "20px Arial"; ctx.fillStyle = stats.color; ctx.fillText(`点击草地放置${stats.name}`, mouseX + 25, mouseY);
+        ctx.globalAlpha = 0.6;
+        if (img && img.loadedSuccessfully) {
+             ctx.drawImage(img, mouseX - radius, mouseY - radius, radius * 2, radius * 2);
+        } else {
+             ctx.fillStyle = stats.color; ctx.beginPath(); ctx.arc(mouseX, mouseY, radius, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+        ctx.beginPath(); ctx.arc(mouseX, mouseY, stats.range, 0, Math.PI*2);
+        ctx.strokeStyle = stats.color; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // 【修改】更新UI，显示答题和放置两种状态
+    function updateUI() {
+        let heartsStr = ""; for(let i=0; i<lives; i++) heartsStr += "❤️"; if(lives === 0) heartsStr = "💔";
+        document.getElementById('lives-display').innerText = heartsStr; document.getElementById('wave-display').innerText = wave;
+
+        updateStatusUI('q1-quest', waveQuestStatus[1], 'status-done', 'status-todo');
+        updateStatusUI('q2-quest', waveQuestStatus[2], 'status-done', 'status-todo');
+        updateStatusUI('q3-quest', waveQuestStatus[3], 'status-done', 'status-todo');
+
+        updateStatusUI('q1-placed', wavePlacementStatus[1], 'status-placed', 'status-todo');
+        updateStatusUI('q2-placed', wavePlacementStatus[2], 'status-placed', 'status-todo');
+        updateStatusUI('q3-placed', wavePlacementStatus[3], 'status-placed', 'status-todo');
+    }
+
+    // 【新增】通用状态图标更新函数
+    function updateStatusUI(elementId, isDone, doneClass, todoClass) {
+        const el = document.getElementById(elementId);
+        if (isDone) {
+            el.innerText = '✓';
+            el.className = doneClass;
+        } else {
+            el.innerText = '✗';
+            el.className = todoClass;
+        }
+    }
+
+    // 辅助函数：检查是否完成了当前波次的所有答题任务
+    function areAllQuestsCompleted() {
+        return waveQuestStatus[1] && waveQuestStatus[2] && waveQuestStatus[3];
+    }
+
+    // 【修改】辅助函数：重置波次所有状态（答题和放置）
+    function resetWaveStates() {
+        waveQuestStatus = { 1: false, 2: false, 3: false };
+        wavePlacementStatus = { 1: false, 2: false, 3: false };
+    }
+
+    // --- 交互事件处理 ---
+    let mouseX = 0; let mouseY = 0;
+    canvas.addEventListener('mousemove', (e) => {
+        const rect = canvas.getBoundingClientRect(); mouseX = e.clientX - rect.left; mouseY = e.clientY - rect.top;
+    });
+    
+    // 【修改】点击画布放置塔的逻辑
+    canvas.addEventListener('click', (e) => {
+        if (placingTowerTier === 0) return;
+
+        const rect = canvas.getBoundingClientRect(); const clickX = e.clientX - rect.left; const clickY = e.clientY - rect.top;
+        let onPath = false; if (ctx.isPointInStroke(clickX, clickY)) onPath = true;
+        let overlaps = towers.some(t => Math.hypot(t.x - clickX, t.y - clickY) < 50);
+        if (!onPath && !overlaps) {
+            towers.push(new Tower(clickX, clickY, placingTowerTier));
+            // 【新增】放置成功后，标记该类型已放置
+            wavePlacementStatus[placingTowerTier] = true;
+            updateUI(); // 更新UI显示放置状态
+            placingTowerTier = 0; 
+            canvas.style.cursor = 'crosshair';
+        } else { console.log("不能放在这里！"); }
+    });
+
+    // ==========================================
+    // 开始下一波进攻的逻辑 (包含难度升级)
+    // ==========================================
+    function startNextWave() {
+        // 核心检查：如果当前是准备阶段，且任务未全部完成，阻止开始下一波
+        if (gameState === 'PREP' && !areAllQuestsCompleted()) {
+            alert("无法开始！请先完成本波次的三项答题任务（简单、中等、困难各一题）。");
+            return;
+        }
+
+        if (gameState === 'DEFEND') return;
+        gameState = 'DEFEND'; 
+        document.getElementById('btn-start').disabled = true; 
+        document.getElementById('btn-start').innerText = "进攻中...";
+
+        // --- 难度计算逻辑 (已确认包含：25%数值增长 + 15%防御增长) ---
+        // 1. 定义第1波的基础数值
+        const baseEnemyCount = 5;      
+        const baseEnemySpeed = 1.0;    
+        const baseEnemyHealth = 70;    
+        const baseEnemyDefense = 0; 
+
+        // 2. 定义增长因子
+        const generalGrowthFactor = 1.35; // 【确认】数量、速度、血量增长 25%
+        const defenseGrowthFactor = 1.35; // 【确认】防御力增长 25%
+
+        // 3. 使用指数公式计算当前波次的值
+        let currentEnemyCount = Math.round(baseEnemyCount * Math.pow(generalGrowthFactor, wave - 1));
+        let currentEnemySpeed = baseEnemySpeed * Math.pow(generalGrowthFactor, wave - 1);
+        let currentEnemyHealth = Math.round(baseEnemyHealth * Math.pow(generalGrowthFactor, wave - 1));
+        // 计算防御力 (取整)
+        let currentEnemyDefense = wave === 1 ? 0 : Math.round(5 * Math.pow(defenseGrowthFactor, wave - 1));
+
+        console.log(`第 ${wave} 波: 数量=${currentEnemyCount}, 速度=${currentEnemySpeed.toFixed(2)}, 血量=${currentEnemyHealth}, 防御=${currentEnemyDefense}`);
+
+        // 4. 生成敌人
+        for (let i = 0; i < currentEnemyCount; i++) {
+            setTimeout(() => { 
+                // 传递防御力参数
+                enemies.push(new Enemy(currentEnemyHealth, currentEnemySpeed, currentEnemyDefense)); 
+            }, i * 1500); 
+        }
+    }
+
+    // --- 数学题目模块 ---
+    const modal = document.getElementById('math-modal');
+    const questionText = document.getElementById('question-text');
+    const questionVisual = document.getElementById('question-visual');
+    const answersContainer = document.getElementById('answers-container');
+    let currentCorrectAnswer = 0; let currentRewardTier = 0;
+
+    // 【修改】点击答题按钮的逻辑
+    function askQuestion(tier) {
+        if (placingTowerTier !== 0) { alert("请先完成当前放置操作，点击草地放置塔。"); return; }
+        
+        // 【新增】检查1：本波是否已经放置过该类型的塔？
+        if (wavePlacementStatus[tier]) {
+            alert("本波次已放置过该类型的玩具，请选择其他类型！");
+            return;
+        }
+
+        // 【新增】检查2：虽然没放，但是不是已经答对过了？
+        if (waveQuestStatus[tier]) {
+            // 如果答对了但没放，直接进入放置模式，不用再答题
+            alert("您已答对该难度的题目，请直接在地图上放置玩具。");
+            currentRewardTier = tier;
+            placingTowerTier = currentRewardTier; 
+            canvas.style.cursor = 'grabbing';
+            return;
+        }
+
+        // 如果既没放也没答对，则弹出题目
+        currentRewardTier = tier; modal.style.display = 'flex'; generateQuestion(tier);
+    }
+
+    function generateQuestion(tier) {
+        // (保持不变) ...
+        answersContainer.innerHTML = ''; questionVisual.innerHTML = ''; let qText = ''; let answer = 0; let visualEmoji = '';
+        switch(tier) {
+            case 1: 
+                answer = Math.floor(Math.random() * 5) + 1; visualEmoji = ['🍎','🍌','🐱','🐶','🚗'][Math.floor(Math.random()*5)];
+                for(let i=0; i<answer; i++) questionVisual.innerHTML += visualEmoji + ' ';
+                qText = `数一数，这里有几个 ${visualEmoji}？`; break;
+            case 2: 
+                let a2 = Math.floor(Math.random() * 5) + 1; let b2 = Math.floor(Math.random() * 4) + 1; answer = a2 + b2;
+                qText = `${a2} + ${b2} = ?`; questionVisual.innerHTML = `${'🔵'.repeat(a2)} ➕ ${'🔵'.repeat(b2)}`; break;
+            case 3: 
+                if (Math.random() > 0.5) {
+                    let a3 = Math.floor(Math.random() * 5) + 5; let b3 = Math.floor(Math.random() * a3); answer = a3 - b3;
+                    qText = `${a3} - ${b3} = ?`; questionVisual.innerHTML = `${'🔴'.repeat(a3)} ➖ ${'🔴'.repeat(b3)}`;
+                } else {
+                    let n1 = Math.floor(Math.random() * 10) + 1; let n2 = n1; while(n2 === n1) n2 = Math.floor(Math.random() * 10) + 1;
+                    answer = Math.max(n1, n2); qText = `哪一个数字更大？ ${n1} 还是 ${n2}？`;
+                } break;
+        }
+        questionText.innerText = qText; currentCorrectAnswer = answer; generateAnswerButtons(answer, tier);
+    }
+    function generateAnswerButtons(correctAnswer, tier) {
+        // (保持不变) ...
+        let answers = [correctAnswer];
+        while (answers.length < 3) {
+            let wrong;
+            if (tier === 3 && answers[0] > 5) { wrong = Math.floor(Math.random() * 10) + 1; } else { wrong = Math.floor(Math.random() * (correctAnswer + 3)) + 1; }
+            if (!answers.includes(wrong) && wrong > 0) answers.push(wrong);
+        }
+        answers.sort(() => Math.random() - 0.5);
+        answers.forEach(ans => {
+            const btn = document.createElement('button'); btn.className = 'answer-btn'; btn.innerText = ans;
+            btn.onclick = () => checkAnswer(ans); answersContainer.appendChild(btn);
+        });
+    }
+    
+    // 回答正确后的处理逻辑
+    function checkAnswer(selectedAnswer) {
+        if (selectedAnswer === currentCorrectAnswer) {
+            modal.style.display = 'none'; 
+            // 标记当前难度的任务为已完成
+            waveQuestStatus[currentRewardTier] = true;
+            updateUI(); // 更新UI显示答题对勾
+
+            // 检查是否所有任务都完成了，如果是，提示可以开始下一波了
+            if (areAllQuestsCompleted()) {
+                alert("恭喜！本波次所有答题任务已完成！请放置好玩具后点击“开始下一波进攻”。");
+            }
+
+            placingTowerTier = currentRewardTier; 
+            canvas.style.cursor = 'grabbing';
+        } else {
+            questionText.innerText = "哎呀，不对哦，再想想！";
+            document.getElementById('modal-content').style.transform = 'translateX(10px)';
+            setTimeout(() => { document.getElementById('modal-content').style.transform = 'translateX(0px)'; }, 100);
+        }
+    }
+
+    // --- 初始化游戏 ---
+    preloadAssets(() => { 
+        // 游戏开始时先重置一下状态
+        resetWaveStates();
+        updateUI(); 
+        gameLoop(); 
+    });
+
+</script>
+</body>
+</html>
