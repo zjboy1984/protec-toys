@@ -3,6 +3,6 @@
 
 
 一款基于HTML5设计的儿童数学塔防游戏，非常简单！
-DEMO: https://tf.fulij.netlib.re/
+DEMO: https://bbq.hidns.co/
 
 初衷就是给我女儿练习数学，本人不会任何代码，纯用GEmini生成的，希望有高手能美化或优化代码，非常感谢！
