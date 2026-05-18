@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>霓虹太空玩具保卫战</title>
+  <style>
+    :root{
+      --bg:#020508;
+      --panel:#0b1d33;
+      --line:#1a3a5f;
+      --line-soft:#274d77;
+      --neon:#25f3ff;
+      --neon2:#7b61ff;
+      --good:#2ef58a;
+      --warn:#ffdb4d;
+      --bad:#ff4d6d;
+      --text:#d9eeff;
+      --muted:#9ec1df;
+      --surface:#0c223a;
+      --surface-2:#0f2b47;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 20% 10%, #0a1f3e 0%, var(--bg) 45%, #010204 100%);
+      color:var(--text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:12px;
+    }
+    .wrap{
+      width:min(1120px, 100%);
+      display:grid;
+      grid-template-columns: 1fr 320px;
+      gap:12px;
+    }
+    .left{
+      position:relative;
+      border:1px solid #1f466d;
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:0 0 25px rgba(37,243,255,.13), inset 0 0 24px rgba(37,243,255,.05);
+      aspect-ratio: 16/10;
+      min-height: 420px;
+      background:rgba(7, 26, 48, 0.5); 
+    }
+    canvas{width:100%;height:100%;display:block}
+    .right{
+      border:1px solid #1f466d;
+      border-radius:12px;
+      background:linear-gradient(180deg, #0b1f37 0%, #081428 100%);
+      box-shadow:0 0 20px rgba(123,97,255,.12), inset 0 0 24px rgba(37,243,255,.05);
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    #startOverlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      padding: 15px 40px;
+      font-size: 24px;
+      background: var(--neon);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      font-weight: 800;
+      box-shadow: 0 0 20px var(--neon);
+    }
+    #startOverlay:hover { background: #fff; }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .title{
+      font-size:18px;
+      font-weight:800;
+      letter-spacing:.55px;
+      color:#d9faff;
+      text-shadow:0 0 8px rgba(37,243,255,.4);
+      margin-bottom:2px;
+    }
+    .subtitle{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:2px;
+    }
+    .stats{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+    }
+    .card{
+      border:1px solid var(--line-soft);
+      border-radius:10px;
+      padding:8px 10px;
+      background:var(--surface);
+      min-height:58px;
+    }
+    .card .k{
+      font-size:11px;
+      opacity:.8;
+      text-transform:uppercase;
+      letter-spacing:.85px;
+    }
+    .card .v{
+      font-size:22px;
+      line-height:1.1;
+      font-weight:800;
+      margin-top:3px;
+      text-shadow:0 0 10px rgba(255,255,255,.05);
+    }
+    .v.credits{color:var(--warn)}
+    .v.lives{color:var(--bad)}
+    .v.wave{color:var(--good)}
+    .v.timer{color:var(--neon);font-size:18px}
+    .panel{
+      border:1px solid var(--line-soft);
+      border-radius:10px;
+      padding:10px;
+      background:var(--surface);
+    }
+    .panel h3{
+      margin:0 0 8px;
+      font-size:13px;
+      letter-spacing:.45px;
+      color:#cdefff;
+      text-transform:uppercase;
+    }
+    .tower-buttons{display:grid;grid-template-columns:1fr;gap:6px}
+    button{
+      border:1px solid #2f5f8f;
+      background:var(--surface-2);
+      color:#dff6ff;
+      border-radius:8px;
+      padding:8px 10px;
+      cursor:pointer;
+      font-weight:700;
+      font-size:13px;
+      transition:filter .12s ease, transform .08s ease, border-color .12s ease;
+      text-align:left;
+    }
+    button:hover{filter:brightness(1.1)}
+    button:active{transform:translateY(1px)}
+    button.active{
+      border-color:var(--neon);
+      box-shadow:0 0 10px rgba(37,243,255,.3), inset 0 0 10px rgba(37,243,255,.12);
+    }
+    button[disabled]{
+      opacity:.55;
+      cursor:not-allowed;
+      filter:none;
+    }
+    .action-btn {
+      text-align: center;
+      margin-top: 8px;
+      flex: 1;
+    }
+    .btn-danger {
+      border-color: #ff4d6d;
+      color: #ff4d6d;
+    }
+    .small{font-size:12px;opacity:.9;line-height:1.42;color:#c7e5fb}
+    .micro{font-size:11px;color:var(--muted)}
+    .controls{
+      border:1px dashed #39658f;
+      border-radius:10px;
+      padding:10px;
+      background:rgba(10,30,50,.58);
+      font-size:12px;
+      line-height:1.45;
+    }
+    .controls-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px;}
+    .controls-row:last-child { margin-bottom: 0; }
+    .footer{
+      margin-top:auto;
+      font-size:11px;
+      opacity:.72;
+      text-align:center;
+      color:var(--muted);
+    }
+    .badge{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:11px;
+      border:1px solid #3a6b96;
+      background:#102b44;
+      margin-right:0;
+    }
+    .kbd{
+      border:1px solid #5b7ea3;
+      border-bottom-width:2px;
+      border-radius:6px;
+      padding:1px 6px;
+      font-size:11px;
+      background:#0f2842;
+      color:#e4f6ff;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    @media (max-width: 980px){
+      .wrap{grid-template-columns:1fr}
+      .left{aspect-ratio:16/11}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <button id="startOverlay">开始游戏</button>
+      <canvas id="game"></canvas>
+    </div>
+    <aside class="right">
+      <div class="header-row">
+        <div>
+          <div class="title">霓虹太空玩具保卫战</div>
+          <div class="subtitle">保护核心。答题建塔。</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <button id="bgmBtn" style="padding:4px 8px; font-size:12px; text-align:center; width: 100%; margin:0;" title="音乐开关">🔇 音乐</button>
+          <button id="restartBtn" class="btn-danger" style="padding:4px 8px; font-size:12px; text-align:center; width: 100%; margin:0;" title="重新开始游戏">🔄 重启</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="card"><div class="k">积分</div><div id="credits" class="v credits">0</div></div>
+        <div class="card"><div class="k">生命</div><div id="lives" class="v lives">0</div></div>
+        <div class="card"><div class="k">波次</div><div id="wave" class="v wave">0</div></div>
+        <div class="card"><div class="k">倒计时</div><div id="timer" class="v timer">0.0s</div></div>
+      </div>
+
+      <div class="panel">
+        <h3>防御塔等级 <span class="micro">(武力值: 低 -> 高)</span></h3>
+        <div class="tower-buttons">
+          <button id="btn1">1 - 简单级-🧸 (55c)</button>
+          <button id="btn2">2 - 中等级-🐤 (75c)</button>
+          <button id="btn3">3 - 困难级-❄️ (110c)</button>
+        </div>
+        <div class="small" style="margin-top:8px; color:var(--warn);">
+          * 放置防御塔前必须回答正确对应的数学题。
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>已选单位</h3>
+        <div id="selectedInfo" class="small">暂未选择。</div>
+        <div style="display:flex; gap:6px;">
+          <button id="upgradeBtn" class="action-btn">升级 (U)</button>
+          <button id="sellBtn" class="action-btn btn-danger">拆除 (S)</button>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="controls-row"><span class="badge">放置 / 选择</span><span class="kbd">点击</span></div>
+        <div class="controls-row"><span class="badge">升级/拆除</span><span class="kbd">U</span> / <span class="kbd">S</span></div>
+        <div class="controls-row"><span class="badge">切换等级</span><span class="kbd">1</span><span class="kbd">2</span><span class="kbd">3</span></div>
+        <div class="controls-row"><span class="badge">控制</span><span class="kbd">R</span>重启 <span class="kbd">M</span>音乐</div>
+      </div>
+
+      <div class="footer">太空挑战版 • 小学一年级适用</div>
+    </aside>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById('game');
+      const ctx = canvas.getContext('2d');
+      const startBtn = document.getElementById('startOverlay');
+
+      const ui = {
+        credits: document.getElementById('credits'),
+        lives: document.getElementById('lives'),
+        wave: document.getElementById('wave'),
+        timer: document.getElementById('timer'),
+        selectedInfo: document.getElementById('selectedInfo'),
+        upgradeBtn: document.getElementById('upgradeBtn'),
+        sellBtn: document.getElementById('sellBtn'),
+        bgmBtn: document.getElementById('bgmBtn'),
+        restartBtn: document.getElementById('restartBtn'),
+        btns: [
+          document.getElementById('btn1'),
+          document.getElementById('btn2'),
+          document.getElementById('btn3'),
+        ]
+      };
+
+      const grid = { cols:16, rows:10, cell:40, ox:0, oy:0 };
+      
+      const towerTypes = {
+        rapid: {
+          key:'rapid', name:'简单级 (泰迪熊)', cost:55, color:'#25f3ff',
+          range:115, damage:10, fireRate:4.0, splash:0, slow:0, projectileSpeed:360,
+          upgradeCost:l=>Math.floor(45 + l*35),
+          scale:l=>({damage:10 + l*4, fireRate:4.0 + l*0.3, range:115 + l*6})
+        },
+        slow: {
+          key:'slow', name:'中等级 (玩具鸭)', cost:75, color:'#2ef58a',
+          range:120, damage:15, fireRate:2.5, splash:0, slow:0.4, projectileSpeed:310,
+          upgradeCost:l=>Math.floor(60 + l*40),
+          scale:l=>({damage:15 + l*5, fireRate:2.5 + l*0.2, range:120 + l*7, slow:Math.min(0.7, 0.4 + l*0.05)})
+        },
+        splash: {
+          key:'splash', name:'困难级 (雪花)', cost:110, color:'#b784ff',
+          range:105, damage:35, fireRate:1.5, splash:60, slow:0, projectileSpeed:280,
+          upgradeCost:l=>Math.floor(80 + l*50),
+          scale:l=>({damage:35 + l*12, fireRate:1.5 + l*0.15, range:105 + l*8, splash:60 + l*6})
+        }
+      };
+      const towerOrder = ['rapid','slow','splash'];
+
+      const mapThemes = [
+        { bg: 'rgba(7, 18, 32, 0.4)', grid: 'rgba(37,243,255,.08)', path: 'rgba(37,243,255,.8)', glow: '#25f3ff' },
+        { bg: 'rgba(32, 7, 24, 0.4)', grid: 'rgba(255,77,166,.08)', path: 'rgba(255,77,166,.8)', glow: '#ff4da6' },
+        { bg: 'rgba(7, 32, 18, 0.4)', grid: 'rgba(46,245,138,.08)', path: 'rgba(46,245,138,.8)', glow: '#2ef58a' },
+        { bg: 'rgba(20, 7, 32, 0.4)', grid: 'rgba(183,132,255,.08)', path: 'rgba(183,132,255,.8)', glow: '#b784ff' },
+        { bg: 'rgba(32, 18, 7, 0.4)', grid: 'rgba(255,159,67,.08)', path: 'rgba(255,159,67,.8)', glow: '#ff9f43' }
+      ];
+
+      const mapPaths = [
+        [[0,4],[2,4],[2,2],[5,2],[5,6],[8,6],[8,3],[11,3],[11,7],[14,7],[15,5]], 
+        [[0,2],[12,2],[12,8],[3,8],[3,5],[15,5]], 
+        [[0,8],[4,8],[4,2],[10,2],[10,7],[15,7]], 
+        [[0,1],[14,1],[14,8],[2,8],[2,4],[10,4],[10,6],[15,6]], 
+        [[0,7],[3,7],[3,5],[7,5],[7,3],[11,3],[11,1],[15,1]]  
+      ];
+
+      let state;
+      let stars = [];
+
+      // Web Audio API 用于程序化背景音乐
+      let audioCtx = null;
+      let bgmInterval = null;
+      let isBgmEnabled = false;
+      const bgmNotes = [220.00, 261.63, 329.63, 392.00, 440.00, 523.25];
+      let noteIdx = 0;
+
+      function toggleBgm() {
+        if (!audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) audioCtx = new AudioContext();
+        }
+        if (!audioCtx) return; 
+
+        isBgmEnabled = !isBgmEnabled;
+        if (isBgmEnabled) {
+          ui.bgmBtn.textContent = "🔊 音乐";
+          ui.bgmBtn.style.color = "var(--good)";
+          
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          bgmInterval = setInterval(() => {
+            if (!isBgmEnabled || state.gameOver || !state.started) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'square';
+            const octave = Math.random() > 0.8 ? 2 : 1; 
+            osc.frequency.value = bgmNotes[noteIdx % bgmNotes.length] * octave;
+            noteIdx += Math.floor(Math.random() * 3) + 1;
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+            osc.stop(audioCtx.currentTime + 0.15);
+          }, 300);
+        } else {
+          ui.bgmBtn.textContent = "🔇 音乐";
+          ui.bgmBtn.style.color = "inherit";
+          clearInterval(bgmInterval);
+        }
+      }
+
+      function askMathQuestion(towerTypeKey) {
+        if (towerTypeKey === 'rapid') {
+          const isPlus = Math.random() > 0.5;
+          let a = Math.floor(Math.random() * 9) + 1; 
+          let b = isPlus ? Math.floor(Math.random() * (10 - a)) + 1 : Math.floor(Math.random() * a) + 1;
+          const answer = isPlus ? a + b : a - b;
+          const userInput = prompt(`【简单数学安全校验】输入正确结果部署防御塔：\n ${a} ${isPlus ? '+' : '-'} ${b} = ?`);
+          return parseInt(userInput) === answer;
+          
+        } else if (towerTypeKey === 'slow') {
+          const ops = ['+', '-'];
+          const op1 = ops[Math.floor(Math.random() * 2)];
+          const op2 = ops[Math.floor(Math.random() * 2)];
+          let a = Math.floor(Math.random() * 10) + 5; 
+          let b, c, res1, answer;
+          
+          if (op1 === '+') {
+            b = Math.floor(Math.random() * (20 - a)) + 1;
+            res1 = a + b;
+          } else {
+            b = Math.floor(Math.random() * a) + 1;
+            res1 = a - b;
+          }
+          
+          if (op2 === '+') {
+            c = Math.floor(Math.random() * (20 - res1)) + 1;
+            answer = res1 + c;
+          } else {
+            c = Math.floor(Math.random() * res1) + 1;
+            answer = res1 - c;
+          }
+          
+          const userInput = prompt(`【中等数学安全校验】(连加连减) 输入正确结果：\n ${a} ${op1} ${b} ${op2} ${c} = ?`);
+          return parseInt(userInput) === answer;
+          
+        } else if (towerTypeKey === 'splash') {
+          const ops = ['+', '-'];
+          const op1 = ops[Math.floor(Math.random() * 2)];
+          const op2 = ops[Math.floor(Math.random() * 2)];
+          let a = Math.floor(Math.random() * 21) + 20; 
+          let b, c, res1, answer;
+          
+          if (op1 === '+') {
+            b = Math.floor(Math.random() * (50 - a)) + 1;
+            res1 = a + b;
+          } else {
+            b = Math.floor(Math.random() * (a - 5)) + 1; 
+            res1 = a - b;
+          }
+          
+          if (op2 === '+') {
+            c = Math.floor(Math.random() * (50 - res1)) + 1;
+            answer = res1 + c;
+          } else {
+            c = Math.floor(Math.random() * res1) + 1;
+            answer = res1 - c;
+          }
+          
+          const userInput = prompt(`【困难数学安全校验】(进阶连加连减) 输入正确结果：\n ${a} ${op1} ${b} ${op2} ${c} = ?`);
+          return parseInt(userInput) === answer;
+        }
+        return false;
+      }
+
+      function makePath(index) {
+        const p = mapPaths[index % mapPaths.length];
+        return p.map(([x,y]) => ({ x: x*grid.cell + grid.cell*0.5, y: y*grid.cell + grid.cell*0.5, gx:x, gy:y }));
+      }
+
+      function updatePathCells() {
+        state.pathCells.clear();
+        for (let i = 0; i < state.path.length - 1; i++) {
+          const p1 = state.path[i];
+          const p2 = state.path[i+1];
+          const minX = Math.min(p1.gx, p2.gx);
+          const maxX = Math.max(p1.gx, p2.gx);
+          const minY = Math.min(p1.gy, p2.gy);
+          const maxY = Math.max(p1.gy, p2.gy);
+          for(let x = minX; x <= maxX; x++) {
+            for(let y = minY; y <= maxY; y++) {
+              state.pathCells.add(x + ',' + y);
+            }
+          }
+        }
+      }
+
+      function getTowerValue(t) {
+        const tp = towerTypes[t.type];
+        let val = tp.cost;
+        for(let l = 1; l < t.level; l++) {
+            val += tp.upgradeCost(l);
+        }
+        return val;
+      }
+
+      function resetGame() {
+        state = {
+          credits: 250,
+          lives: 20,
+          wave: 0,
+          waveCountdown: 10,
+          waveInProgress: false,
+          spawnQueue: [],
+          spawnTimer: 0,
+          enemies: [],
+          towers: [],
+          projectiles: [],
+          effects: [],
+          selectedType: 'rapid',
+          selectedTowerId: null,
+          nextTowerId: 1,
+          gameOver: false,
+          started: false,
+          path: [],
+          pathCells: new Set(),
+          hoveredCell: null,
+          currentThemeIndex: 0,
+          currentPathIndex: 0
+        };
+        
+        state.path = makePath(state.currentPathIndex);
+        updatePathCells();
+        
+        startBtn.style.display = 'block';
+        
+        stars = [];
+        for (let i = 0; i < 60; i++) {
+          stars.push({
+            x: Math.random(),
+            y: Math.random(),
+            size: Math.random() * 2 + 0.5,
+            opacity: Math.random() * 0.5 + 0.3
+          });
+        }
+        
+        uiUpdate();
+        setActiveTypeButton();
+      }
+
+      function resize() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = Math.floor(rect.width * devicePixelRatio);
+        canvas.height = Math.floor(rect.height * devicePixelRatio);
+        ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+        const cw = rect.width, ch = rect.height;
+        grid.cell = Math.floor(Math.min(cw / grid.cols, ch / grid.rows));
+        const mapW = grid.cols * grid.cell, mapH = grid.rows * grid.cell;
+        grid.ox = Math.floor((cw - mapW) * 0.5);
+        grid.oy = Math.floor((ch - mapH) * 0.5);
+      }
+
+      function uiUpdate() {
+        ui.credits.textContent = state.credits;
+        ui.lives.textContent = state.lives;
+        ui.wave.textContent = state.wave;
+        ui.timer.textContent = state.gameOver ? '失败' : !state.started ? '等待开始' : state.waveInProgress ? '攻击中' : state.waveCountdown.toFixed(1)+'s';
+        updateSelectedInfo();
+
+        const t = selectedTower();
+        if (!t) {
+          ui.upgradeBtn.disabled = true;
+          ui.upgradeBtn.textContent = '升级 (U)';
+          
+          ui.sellBtn.disabled = true;
+          ui.sellBtn.textContent = '拆除 (S)';
+        } else {
+          const type = towerTypes[t.type];
+          const cost = type.upgradeCost(t.level);
+          const canAfford = state.credits >= cost;
+          ui.upgradeBtn.disabled = !canAfford;
+          ui.upgradeBtn.textContent = `升级 (U) - ${cost}c`;
+          
+          const refund = getTowerValue(t);
+          ui.sellBtn.disabled = false;
+          ui.sellBtn.textContent = `拆除 (S) +${refund}c`;
+        }
+      }
+
+      function setActiveTypeButton() {
+        ui.btns.forEach((b,i)=> b.classList.toggle('active', towerOrder[i] === state.selectedType));
+      }
+
+      function gridToWorld(gx,gy){
+        return {x:grid.ox + gx*grid.cell + grid.cell*0.5, y:grid.oy + gy*grid.cell + grid.cell*0.5};
+      }
+
+      function worldToGrid(mx,my){
+        const gx = Math.floor((mx - grid.ox)/grid.cell);
+        const gy = Math.floor((my - grid.oy)/grid.cell);
+        if(gx<0||gy<0||gx>=grid.cols||gy>=grid.rows) return null;
+        return {gx,gy};
+      }
+
+      function getTowerAt(gx,gy){
+        return state.towers.find(t=>t.gx===gx&&t.gy===gy);
+      }
+
+      function canPlace(gx,gy){
+        if(state.pathCells.has(gx+','+gy)) return false;
+        if(getTowerAt(gx,gy)) return false;
+        return true;
+      }
+
+      function placeTower(gx,gy){
+        if(!state.started) return; 
+        const tp = towerTypes[state.selectedType];
+        if(!canPlace(gx,gy)) return;
+        if(state.credits < tp.cost) return;
+
+        if(!askMathQuestion(tp.key)) {
+          alert("计算错误！能量注入失败，防御塔无法部署。");
+          return;
+        }
+
+        const p = gridToWorld(gx,gy);
+        const base = tp.scale(0);
+        state.credits -= tp.cost;
+        const tw = {
+          id: state.nextTowerId++,
+          type: tp.key, gx, gy, x:p.x, y:p.y, level:1,
+          cooldown: 0,
+          range: base.range, damage: base.damage, fireRate: base.fireRate,
+          splash: base.splash || 0, slow: base.slow || 0
+        };
+        state.towers.push(tw);
+        state.selectedTowerId = tw.id;
+        uiUpdate();
+      }
+
+      function selectedTower(){
+        return state.towers.find(t=>t.id===state.selectedTowerId) || null;
+      }
+
+      function upgradeSelected(){
+        const t = selectedTower();
+        if(!t) return;
+        const type = towerTypes[t.type];
+        const cost = type.upgradeCost(t.level);
+        if(state.credits < cost) return;
+        state.credits -= cost;
+        t.level++;
+        const s = type.scale(t.level-1);
+        t.damage = s.damage;
+        t.fireRate = s.fireRate;
+        t.range = s.range;
+        if(s.splash) t.splash = s.splash;
+        if(s.slow) t.slow = s.slow;
+        uiUpdate();
+      }
+
+      function sellSelected() {
+        const t = selectedTower();
+        if(!t) return;
+        const refund = getTowerValue(t);
+        state.credits += refund;
+        
+        state.effects.push({x: t.x, y: t.y, t: 0.6, c: '#ffdb4d', r: 35});
+        
+        state.towers = state.towers.filter(tw => tw.id !== t.id);
+        state.selectedTowerId = null;
+        uiUpdate();
+      }
+
+      function updateSelectedInfo(){
+        const t = selectedTower();
+        if(!t){
+          const tp = towerTypes[state.selectedType];
+          ui.selectedInfo.innerHTML = `已选类型: <b>${tp.name}</b><br>费用: ${tp.cost}c`;
+          return;
+        }
+        const type = towerTypes[t.type];
+        ui.selectedInfo.innerHTML =
+          `<b>${type.name}</b> • 等级 ${t.level}<br>`+
+          `武力值: DMG ${t.damage.toFixed(0)} • 射速 ${t.fireRate.toFixed(1)}<br>`+
+          `范围 ${t.range.toFixed(0)}${t.splash?` • 溅射 ${t.splash.toFixed(0)}`:''}${t.slow?` • 减速 ${(t.slow*100|0)}%`:''}`;
+      }
+
+      function startWave() {
+        state.wave++;
+        state.waveInProgress = true;
+        const count = 8 + state.wave * 3;
+        const hpBase = 40 + state.wave * 18;
+        state.spawnQueue = [];
+        for(let i=0;i<count;i++){
+          const spd = 45 + state.wave*4 + Math.random()*10;
+          state.spawnQueue.push({ hp: hpBase + i*2, speed: spd, reward: 8 + Math.floor(state.wave*1.2), r: 9 });
+        }
+        if(state.wave % 3 === 0){
+          state.spawnQueue.push({ hp: hpBase*5, speed: 40 + state.wave*2, reward: 50, r: 16, boss:true });
+        }
+        state.spawnTimer = 0;
+      }
+
+      function spawnEnemy(data){
+        const start = state.path[0];
+        state.enemies.push({
+          x:start.x, y:start.y,
+          hp:data.hp, maxHp:data.hp,
+          speed:data.speed, reward:data.reward,
+          r:data.r, pathIndex:0, slowMult:1, slowTimer:0,
+          boss:!!data.boss, dead:false
+        });
+      }
+
+      function hitEnemy(enemy, dmg, slow=0){
+        enemy.hp -= dmg;
+        if(slow>0){
+          enemy.slowMult = Math.min(enemy.slowMult, 1-slow);
+          enemy.slowTimer = Math.max(enemy.slowTimer, 1.2);
+        }
+        state.effects.push({x:enemy.x,y:enemy.y,t:0.12,c:'#ffffff'});
+        if(enemy.hp <= 0 && !enemy.dead){
+          enemy.dead = true;
+          state.credits += enemy.reward;
+        }
+      }
+
+      function update(dt){
+        if(state.gameOver || !state.started) return;
+
+        if(!state.waveInProgress){
+          state.waveCountdown -= dt;
+          if(state.waveCountdown <= 0) startWave();
+        } else {
+          state.spawnTimer -= dt;
+          if(state.spawnQueue.length && state.spawnTimer <= 0){
+            spawnEnemy(state.spawnQueue.shift());
+            state.spawnTimer = Math.max(0.3, 0.6 - state.wave*0.02);
+          }
+        }
+
+        for(const e of state.enemies){
+          if(e.dead) continue;
+          if(e.slowTimer>0){
+            e.slowTimer -= dt;
+            if(e.slowTimer<=0) e.slowMult = 1;
+          }
+          const target = state.path[e.pathIndex+1];
+          if(!target){
+            e.dead = true;
+            state.lives--;
+            if(state.lives<=0) state.gameOver = true;
+            continue;
+          }
+          const dx = target.x - e.x, dy = target.y - e.y;
+          const dist = Math.hypot(dx,dy);
+          const step = e.speed * e.slowMult * dt;
+          if(dist <= step){ e.x = target.x; e.y = target.y; e.pathIndex++; }
+          else { e.x += dx/dist*step; e.y += dy/dist*step; }
+        }
+
+        for(const t of state.towers){
+          t.cooldown -= dt;
+          if(t.cooldown > 0) continue;
+          let best = null, bestProg = -1;
+          for(const e of state.enemies){
+            if(e.dead) continue;
+            const d = Math.hypot(e.x-t.x, e.y-t.y);
+            if(d <= t.range){
+              if(e.pathIndex > bestProg){ bestProg = e.pathIndex; best = e; }
+            }
+          }
+          if(best){
+            const dx = best.x - t.x, dy = best.y - t.y;
+            const a = Math.atan2(dy,dx);
+            state.projectiles.push({
+              x:t.x, y:t.y, vx:Math.cos(a)*towerTypes[t.type].projectileSpeed, vy:Math.sin(a)*towerTypes[t.type].projectileSpeed,
+              life:1.2, target:best, dmg:t.damage, splash:t.splash||0, slow:t.slow||0, color:towerTypes[t.type].color
+            });
+            t.cooldown = 1 / t.fireRate;
+          }
+        }
+
+        for(const p of state.projectiles){
+          p.life -= dt;
+          if(p.life <= 0) { p.dead = true; continue; }
+          p.x += p.vx*dt; p.y += p.vy*dt;
+          for(const e of state.enemies){
+            if(e.dead) continue;
+            const d = Math.hypot(e.x-p.x,e.y-p.y);
+            if(d <= e.r + 3){
+              if(p.splash>0){
+                for(const ee of state.enemies){
+                  if(!ee.dead && Math.hypot(ee.x-e.x, ee.y-e.y) <= p.splash) hitEnemy(ee, p.dmg, p.slow);
+                }
+                state.effects.push({x:e.x,y:e.y,t:0.25,c:'#b784ff',r:p.splash});
+              } else { hitEnemy(e, p.dmg, p.slow); }
+              p.dead = true; break;
+            }
+          }
+        }
+
+        state.enemies = state.enemies.filter(e=>!e.dead);
+        state.projectiles = state.projectiles.filter(p=>!p.dead);
+        for(const fx of state.effects) fx.t -= dt;
+        state.effects = state.effects.filter(f=>f.t>0);
+
+        if(state.waveInProgress && state.spawnQueue.length===0 && state.enemies.length===0){
+          state.waveInProgress = false;
+          state.waveCountdown = 8;
+          state.credits += 40 + state.wave*5;
+          
+          state.currentThemeIndex = (state.currentThemeIndex + 1) % mapThemes.length;
+          state.currentPathIndex = (state.currentPathIndex + 1) % mapPaths.length;
+          
+          state.path = makePath(state.currentPathIndex);
+          updatePathCells();
+          
+          for (let i = state.towers.length - 1; i >= 0; i--) {
+            const t = state.towers[i];
+            if (state.pathCells.has(t.gx + ',' + t.gy)) {
+              const refund = getTowerValue(t);
+              state.credits += refund; 
+              state.towers.splice(i, 1);
+              if (state.selectedTowerId === t.id) {
+                  state.selectedTowerId = null;
+              }
+              state.effects.push({x: t.x, y: t.y, t: 0.6, c: '#ffdb4d', r: 35});
+            }
+          }
+        }
+        uiUpdate();
+      }
+
+      function drawTeddyIcon(ctx, color, size, level) {
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color + "22";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0.1 * size, 0.6 * size, 0, Math.PI * 2);
+        ctx.arc(-0.45 * size, -0.4 * size, 0.28 * size, 0, Math.PI * 2);
+        ctx.arc(0.45 * size, -0.4 * size, 0.28 * size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(-0.22 * size, -0.05 * size, 0.08 * size, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0.22 * size, -0.05 * size, 0.08 * size, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0.22 * size, 0.1 * size, 0, Math.PI * 2); ctx.fill();
+        
+        if(level > 1) {
+            ctx.beginPath(); ctx.arc(0, -0.45*size, (0.05 + level*0.01)*size, 0, Math.PI*2); ctx.fill();
+        }
+      }
+
+      function drawDuckIcon(ctx, color, size, level) {
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color + "22";
+        ctx.lineWidth = 2;
+        
+        ctx.save();
+        ctx.translate(0.1*size, 0);
+
+        ctx.beginPath();
+        ctx.moveTo(-0.5 * size, 0.1 * size);
+        ctx.bezierCurveTo(-0.9*size, 0.1*size, -0.9*size, 0.7*size, -0.2*size, 0.7*size);
+        ctx.bezierCurveTo(0.5*size, 0.7*size, 0.9*size, 0.3*size, 0.5*size, -0.1*size);
+        ctx.bezierCurveTo(0.3*size, -0.3*size, -0.1*size, -0.1*size, -0.2*size, 0.1*size);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(-0.35 * size, -0.35 * size, 0.35 * size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(-0.45 * size, -0.45 * size, 0.08 * size, 0, Math.PI * 2); ctx.fill();
+
+        ctx.strokeStyle = "#ff9f43";
+        ctx.fillStyle = "#ff9f4344";
+        ctx.beginPath();
+        ctx.moveTo(-0.65 * size, -0.3 * size);
+        ctx.lineTo(-0.95 * size, -0.25 * size);
+        ctx.lineTo(-0.65 * size, -0.15 * size);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+        
+        if(level > 1) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath(); ctx.arc(0,0, 0.85*size, 0, Math.PI*2); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+      }
+
+      function drawSnowflakeIcon(ctx, color, size, level) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 + level*0.3;
+        ctx.lineCap = "round";
+        
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI * 2 / 6) * i;
+            const x2 = Math.cos(angle) * size;
+            const y2 = Math.sin(angle) * size;
+            
+            ctx.moveTo(0, 0);
+            ctx.lineTo(x2, y2);
+            
+            const branchAngle = angle + Math.PI/4;
+            const branchLen = 0.4 * size;
+            const bx = Math.cos(angle) * (0.6*size);
+            const by = Math.sin(angle) * (0.6*size);
+            
+            ctx.moveTo(bx, by);
+            ctx.lineTo(bx + Math.cos(angle + Math.PI/3)*branchLen, by + Math.sin(angle + Math.PI/3)*branchLen);
+            ctx.moveTo(bx, by);
+            ctx.lineTo(bx + Math.cos(angle - Math.PI/3)*branchLen, by + Math.sin(angle - Math.PI/3)*branchLen);
+            
+            if(level > 1) {
+                const bx2 = Math.cos(angle) * (0.3*size);
+                const by2 = Math.sin(angle) * (0.3*size);
+                const branchLen2 = 0.25 * size;
+                ctx.moveTo(bx2, by2);
+                ctx.lineTo(bx2 + Math.cos(angle + Math.PI/3)*branchLen2, by2 + Math.sin(angle + Math.PI/3)*branchLen2);
+                ctx.moveTo(bx2, by2);
+                ctx.lineTo(bx2 + Math.cos(angle - Math.PI/3)*branchLen2, by2 + Math.sin(angle - Math.PI/3)*branchLen2);
+            }
+        }
+        ctx.stroke();
+        
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(0,0, 0.15*size, 0, Math.PI*2); ctx.fill();
+      }
+
+      function drawToyBoxIcon(ctx, x, y, size) {
+        ctx.save();
+        ctx.translate(x, y);
+        
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ffffcc';
+        
+        const boxSize = grid.cell * 0.45;
+
+        ctx.fillStyle = '#cc6600';
+        ctx.strokeStyle = '#ffffcc';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.roundRect(-boxSize, -boxSize*0.5, boxSize*2, boxSize*1.5, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ff9933';
+        ctx.strokeStyle = '#ffffcc';
+        ctx.beginPath();
+        ctx.roundRect(-boxSize, -boxSize*0.75, boxSize*2, boxSize*0.5, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffe066';
+        ctx.shadowBlur = 0;
+        ctx.font = '800 20px sans-serif'; ctx.textAlign='center';
+        ctx.fillText('TOYS', 0, boxSize * 0.4);
+
+        ctx.restore();
+      }
+
+      function drawThiefIcon(ctx, x, y, r, isBoss) {
+        ctx.save();
+        ctx.translate(x, y);
+
+        const bearColor = isBoss ? '#d63031' : '#e17055'; 
+
+        ctx.fillStyle = bearColor;
+        ctx.beginPath(); ctx.arc(-r*0.8, -r*0.6, r*0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(r*0.8, -r*0.6, r*0.5, 0, Math.PI*2); ctx.fill();
+
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#2d3436';
+        ctx.lineWidth = r*0.1;
+        ctx.stroke();
+
+        ctx.fillStyle = '#2d3436';
+        ctx.beginPath();
+        ctx.ellipse(0, -r*0.1, r*0.8, r*0.35, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.fillStyle = isBoss ? '#ffeaa7' : '#ffffff';
+        ctx.beginPath(); ctx.arc(-r*0.3, -r*0.1, r*0.15, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(r*0.3, -r*0.1, r*0.15, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#ffeaa7';
+        ctx.beginPath(); ctx.arc(0, r*0.4, r*0.4, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#2d3436';
+        ctx.beginPath(); ctx.arc(0, r*0.3, r*0.15, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = '#f5cd79';
+        ctx.beginPath(); ctx.arc(r*0.9, r*0.5, r*0.6, 0, Math.PI*2); ctx.fill();
+        ctx.strokeStyle = '#d1ccc0';
+        ctx.lineWidth = 1; ctx.stroke();
+        
+        ctx.fillStyle = '#b33939';
+        ctx.font = `bold ${r*0.8}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('$', r*0.9, r*0.5);
+
+        if (isBoss) {
+          ctx.fillStyle = '#f1c40f';
+          ctx.beginPath();
+          ctx.moveTo(-r*0.6, -r*0.8);
+          ctx.lineTo(-r*0.8, -r*1.5);
+          ctx.lineTo(-r*0.2, -r*1.1);
+          ctx.lineTo(0, -r*1.6);
+          ctx.lineTo(r*0.2, -r*1.1);
+          ctx.lineTo(r*0.8, -r*1.5);
+          ctx.lineTo(r*0.6, -r*0.8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#e67e22';
+          ctx.lineWidth = r*0.1;
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function draw(){
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        ctx.clearRect(0,0,w,h);
+        
+        const theme = mapThemes[state.currentThemeIndex];
+
+        if (state.started) { 
+          ctx.save();
+          ctx.fillStyle = theme.bg; 
+          ctx.fillRect(0, 0, w, h);
+          
+          for (let star of stars) {
+            ctx.globalAlpha = star.opacity;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(star.x * w, star.y * h, star.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1.0;
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.translate(grid.ox, grid.oy);
+
+        ctx.strokeStyle = theme.grid;
+        for(let x=0;x<=grid.cols;x++){ ctx.beginPath(); ctx.moveTo(x*grid.cell,0); ctx.lineTo(x*grid.cell,grid.rows*grid.cell); ctx.stroke(); }
+        for(let y=0;y<=grid.rows;y++){ ctx.beginPath(); ctx.moveTo(0,y*grid.cell); ctx.lineTo(grid.cols*grid.cell,y*grid.cell); ctx.stroke(); }
+
+        const path = state.path;
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = theme.path;
+        ctx.shadowBlur = 8; ctx.shadowColor = theme.glow;
+        ctx.beginPath();
+        ctx.moveTo(path[0].x-grid.ox,path[0].y-grid.oy);
+        for(let i=1;i<path.length;i++) ctx.lineTo(path[i].x-grid.ox,path[i].y-grid.oy);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        
+        const endPos = state.path[state.path.length-1];
+        drawToyBoxIcon(ctx, endPos.x-grid.ox, endPos.y-grid.oy, grid.cell * 0.9);
+
+        if(state.hoveredCell && state.started){
+          const {gx,gy}=state.hoveredCell;
+          const ok = canPlace(gx,gy);
+          ctx.fillStyle = ok?'rgba(46,245,138,.15)':'rgba(255,77,109,.15)';
+          ctx.fillRect(gx*grid.cell, gy*grid.cell, grid.cell, grid.cell);
+        }
+
+        for(const t of state.towers){
+          const x=t.x-grid.ox, y=t.y-grid.oy;
+          const type = towerTypes[t.type];
+          
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = type.color;
+          
+          const iconSize = grid.cell * 0.4; 
+
+          ctx.save();
+          ctx.translate(x, y); 
+          
+          if (t.type === 'rapid') {
+              drawTeddyIcon(ctx, type.color, iconSize, t.level);
+          } else if (t.type === 'slow') {
+              drawDuckIcon(ctx, type.color, iconSize, t.level);
+          } else if (t.type === 'splash') {
+              drawSnowflakeIcon(ctx, type.color, iconSize, t.level);
+          }
+          
+          ctx.restore();
+          ctx.shadowBlur = 0;
+
+          if(state.selectedTowerId===t.id){
+            ctx.strokeStyle = 'rgba(255,255,255,.4)';
+            ctx.setLineDash([5,3]);
+            ctx.beginPath(); ctx.arc(x,y,t.range,0,Math.PI*2); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+
+        for(const p of state.projectiles){
+          ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x-grid.ox,p.y-grid.oy,3,0,Math.PI*2); ctx.fill();
+        }
+        
+        for(const e of state.enemies){
+          const x=e.x-grid.ox, y=e.y-grid.oy;
+          
+          drawThiefIcon(ctx, x, y, e.r, e.boss);
+          
+          const hpOffset = e.boss ? e.r + 20 : e.r + 10;
+          ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(x-12, y - hpOffset, 24, 3);
+          ctx.fillStyle='#2ef58a'; ctx.fillRect(x-12, y - hpOffset, 24*(e.hp/e.maxHp), 3);
+        }
+        
+        for(const fx of state.effects){
+          ctx.strokeStyle = fx.c; ctx.globalAlpha = fx.t/0.25;
+          ctx.beginPath(); ctx.arc(fx.x-grid.ox, fx.y-grid.oy, fx.r?fx.r:10,0,Math.PI*2); ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+
+        ctx.restore();
+
+        if(state.gameOver){
+          ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0,0,w,h);
+          ctx.fillStyle = '#ff4d6d'; ctx.font = '800 40px sans-serif'; ctx.textAlign='center';
+          ctx.fillText('游戏结束', w/2, h/2);
+          ctx.font = '600 20px sans-serif'; ctx.fillText('按下 R 重启', w/2, h/2 + 40);
+        }
+      }
+
+      function loop(t){
+        const dt = Math.min(0.033, (t-state.lastT)/1000 || 0.016);
+        state.lastT=t;
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      startBtn.onclick = () => {
+        state.started = true;
+        startBtn.style.display = 'none';
+      };
+
+      canvas.addEventListener('mousemove', (e)=>{
+        const r = canvas.getBoundingClientRect();
+        state.hoveredCell = worldToGrid(e.clientX - r.left, e.clientY - r.top);
+      });
+
+      canvas.addEventListener('click', (e)=>{
+        if(state.gameOver || !state.started) return;
+        const r = canvas.getBoundingClientRect();
+        const g = worldToGrid(e.clientX - r.left, e.clientY - r.top);
+        if(!g) return;
+        const existing = getTowerAt(g.gx,g.gy);
+        if(existing){ state.selectedTowerId = existing.id; updateSelectedInfo(); return; }
+        placeTower(g.gx,g.gy);
+      });
+
+      window.addEventListener('keydown', (e)=>{
+        const k = e.key.toLowerCase();
+        if(k==='1'){state.selectedType='rapid'; setActiveTypeButton(); updateSelectedInfo();}
+        else if(k==='2'){state.selectedType='slow'; setActiveTypeButton(); updateSelectedInfo();}
+        else if(k==='3'){state.selectedType='splash'; setActiveTypeButton(); updateSelectedInfo();}
+        else if(k==='u'){upgradeSelected();}
+        else if(k==='s'){sellSelected();} 
+        else if(k==='m'){toggleBgm();} 
+        else if(k==='r'){resetGame();}
+      });
+
+      ui.btns[0].onclick=()=>{state.selectedType='rapid'; setActiveTypeButton(); updateSelectedInfo();};
+      ui.btns[1].onclick=()=>{state.selectedType='slow'; setActiveTypeButton(); updateSelectedInfo();};
+      ui.btns[2].onclick=()=>{state.selectedType='splash'; setActiveTypeButton(); updateSelectedInfo();};
+      ui.upgradeBtn.onclick=()=>upgradeSelected();
+      ui.sellBtn.onclick=()=>sellSelected();
+      ui.bgmBtn.onclick=()=>toggleBgm();
+      ui.restartBtn.onclick=()=>resetGame(); // 绑定重启按钮
+
+      window.addEventListener('resize', resize);
+      resetGame();
+      resize();
+      state.lastT = performance.now();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
