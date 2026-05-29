@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双人战争塔防：空天突袭 (全音效火力版)</title>
+    <style>
+        body {
+            margin: 0; padding: 0; width: 100vw; height: 100vh;
+            background-color: #1e272e; color: #ecf0f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .top-header {
+            position: relative; text-align: center; padding: 15px 0;
+            background: linear-gradient(to bottom, #2f3640, #1e272e);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.6); z-index: 20; border-bottom: 2px solid #485460; flex-shrink: 0;
+        }
+        .top-header h1 { margin: 0; font-size: 26px; text-shadow: 0 0 10px rgba(255,255,255,0.3); letter-spacing: 2px; }
+        .top-header p { margin: 5px 0 0; font-size: 14px; color: #0be881; font-weight: bold; }
+
+        .utility-btns { position: absolute; top: 50%; right: 20px; transform: translateY(-50%); display: flex; gap: 12px; }
+        .util-btn {
+            background: linear-gradient(135deg, #353b48, #2f3640); color: #d2dae2; border: 1px solid #485460;
+            padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 5px;
+        }
+        .util-btn:hover { background: #d2dae2; color: #1e272e; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.4); }
+        .util-btn:active { transform: translateY(1px); }
+
+        .main-layout { display: flex; flex-grow: 1; width: 100%; overflow: hidden; }
+
+        .side-panel {
+            width: 270px; flex-shrink: 0; background: linear-gradient(to bottom, #2f3640, #1e272e);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 15px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); z-index: 10;
+        }
+        .side-panel.left { border-right: 2px solid #485460; }
+        .side-panel.right { border-left: 2px solid #485460; }
+
+        #game-container {
+            flex-grow: 1; display: flex; justify-content: center; align-items: center;
+            background: radial-gradient(circle at center, #2f3640, #1e272e); position: relative;
+        }
+        canvas { display: block; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+
+        .commander-title {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 10px; margin: 0 0 20px 0; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); text-align: center;
+        }
+        .p1 { color: #0fb9b1; }
+        .p2 { color: #ff5e57; }
+        
+        .controls { display: flex; flex-direction: column; gap: 12px; width: 100%; }
+        .unit-row { display: flex; width: 100%; gap: 6px; }
+        
+        .btn {
+            background: linear-gradient(135deg, #353b48, #2f3640); color: #d2dae2; border: 2px solid; border-radius: 8px; cursor: pointer;
+            font-weight: bold; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center;
+        }
+        .btn:hover { background: #d2dae2; color: #1e272e; transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.4); }
+        .btn:active { transform: translateY(1px) scale(0.95); }
+        .btn-p1 { border-color: #0fb9b1; }
+        .btn-p2 { border-color: #ff5e57; }
+
+        .spawn-btn { flex-grow: 1; padding: 12px 6px; flex-direction: row; justify-content: flex-start; gap: 6px; font-size: 14px; }
+        .upg-btn { width: 75px; flex-shrink: 0; padding: 6px; flex-direction: column; justify-content: center; font-size: 12px; gap: 4px; line-height: 1.2; background: linear-gradient(135deg, #485460, #1e272e); }
+        
+        .icon { width: 24px; height: 24px; flex-shrink: 0; }
+        .flip { transform: scaleX(-1); }
+
+        #math-modal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+            display: none; justify-content: center; align-items: center; z-index: 100;
+        }
+        #math-modal {
+            background: linear-gradient(135deg, rgba(72, 84, 96, 0.9), rgba(30, 39, 46, 0.9));
+            padding: 30px 50px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        
+        #math-title { font-size: 20px; margin-bottom: 15px; color: #ffd32a; }
+        #math-question { font-size: 36px; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; }
+        #math-input {
+            font-size: 24px; padding: 10px; width: 120px; text-align: center;
+            border: 2px solid #0be881; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; outline: none;
+        }
+        #math-input:focus { box-shadow: 0 0 15px rgba(11, 232, 129, 0.5); }
+        .math-tip { margin-top: 15px; font-size: 14px; color: #808e9b; }
+        .error-shake { animation: shake 0.4s; border-color: #ff3f34 !important; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+    </style>
+</head>
+<body>
+
+    <audio id="bgm" loop>
+        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="top-header">
+        <h1>海陆空阵地战</h1>
+        <p>掌握制空权，实施降维打击！</p>
+        
+        <div class="utility-btns">
+            <button id="music-btn" class="util-btn" onclick="toggleMusic()">🎵 音效与音乐: 关</button>
+            <button class="util-btn" onclick="location.reload()">🔄 重启游戏</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="side-panel left p1">
+            <h3 class="commander-title">
+                <svg class="icon" style="color:#0fb9b1; width:40px; height:40px;" viewBox="-20 -20 40 40"><polygon points="0,-15 -20,5 20,5" fill="currentColor"/><rect x="-15" y="5" width="30" height="15" fill="currentColor"/><rect x="-5" y="10" width="10" height="10" fill="#ecf0f1"/></svg>
+                <span>蓝方指挥官 (P1)</span>
+            </h3>
+            <div class="controls">
+                <div class="unit-row">
+                    <button class="btn btn-p1 spawn-btn" onclick="initiateSpawn(p1, 'infantry')">
+                        <svg class="icon" style="color:#0fb9b1" viewBox="-10 -10 20 20"><rect x="-4" y="-4" width="8" height="10" fill="currentColor"/><path d="M-5,-4 A5,5 0 0,1 5,-4 Z" fill="currentColor"/><rect x="2" y="-2" width="10" height="3" fill="#ecf0f1"/></svg>
+                        <span>步兵 (Q) ¥10</span>
+                    </button>
+                    <button id="upg-p1-infantry" class="btn btn-p1 upg-btn" onclick="initiateUpgrade(p1, 'infantry')"></button>
+                </div>
+                <div class="unit-row">
+                    <button class="btn btn-p1 spawn-btn" onclick="initiateSpawn(p1, 'tank')">
+                        <svg class="icon" style="color:#0fb9b1" viewBox="-15 -10 30 20"><rect x="-14" y="-10" width="28" height="6" fill="#1e272e"/><rect x="-14" y="4" width="28" height="6" fill="#1e272e"/><rect x="-12" y="-8" width="24" height="16" fill="currentColor"/><circle cx="0" cy="0" r="8" fill="#ecf0f1"/><rect x="0" y="-3" width="18" height="6" fill="#1e272e"/></svg>
+                        <span>坦克 (W) ¥30</span>
+                    </button>
+                    <button id="upg-p1-tank" class="btn btn-p1 upg-btn" onclick="initiateUpgrade(p1, 'tank')"></button>
+                </div>
+                <div class="unit-row">
+                    <button class="btn btn-p1 spawn-btn" onclick="initiateSpawn(p1, 'artillery')">
+                        <svg class="icon" style="color:#0fb9b1" viewBox="-15 -15 30 30"><polygon points="-10,8 10,8 0,-2" fill="currentColor"/><g transform="rotate(-36)"><rect x="-4" y="-3" width="22" height="6" fill="#1e272e"/></g></svg>
+                        <span>火炮 (E) ¥20</span>
+                    </button>
+                    <button id="upg-p1-artillery" class="btn btn-p1 upg-btn" onclick="initiateUpgrade(p1, 'artillery')"></button>
+                </div>
+                <div class="unit-row">
+                    <button class="btn btn-p1 spawn-btn" onclick="initiateSpawn(p1, 'airplane')">
+                        <svg class="icon" style="color:#0fb9b1" viewBox="-15 -15 30 30"><polygon points="12,0 0,-12 -4,-12 4,-3 -10,-3 -14,-8 -14,8 -10,3 4,3 -4,12 0,12" fill="currentColor"/></svg>
+                        <span>飞机 (R) ¥40</span>
+                    </button>
+                    <button id="upg-p1-airplane" class="btn btn-p1 upg-btn" onclick="initiateUpgrade(p1, 'airplane')"></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-container">
+            <canvas id="gameCanvas"></canvas>
+            <div id="math-modal-overlay">
+                <div id="math-modal">
+                    <div id="math-title">军火库密码验证</div>
+                    <div id="math-question">5 + 8 = ?</div>
+                    <input type="number" id="math-input" autocomplete="off" placeholder="输入答案">
+                    <div class="math-tip">按 <b>Enter</b> 确认，按 <b>Esc</b> 取消</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-panel right p2">
+            <h3 class="commander-title">
+                <svg class="icon" style="color:#ff5e57; width:40px; height:40px;" viewBox="-20 -20 40 40"><polygon points="0,-15 -20,5 20,5" fill="currentColor"/><rect x="-15" y="5" width="30" height="15" fill="currentColor"/><rect x="-5" y="10" width="10" height="10" fill="#ecf0f1"/></svg>
+                <span>红方指挥官 (P2)</span>
+            </h3>
+            <div class="controls">
+                <div class="unit-row">
+                    <button class="btn btn-p2 spawn-btn" onclick="initiateSpawn(p2, 'infantry')">
+                        <svg class="icon flip" style="color:#ff5e57" viewBox="-10 -10 20 20"><rect x="-4" y="-4" width="8" height="10" fill="currentColor"/><path d="M-5,-4 A5,5 0 0,1 5,-4 Z" fill="currentColor"/><rect x="2" y="-2" width="10" height="3" fill="#ecf0f1"/></svg>
+                        <span>步兵 (I) ¥10</span>
+                    </button>
+                    <button id="upg-p2-infantry" class="btn btn-p2 upg-btn" onclick="initiateUpgrade(p2, 'infantry')"></button>
+                </div>
+                <div class="unit-row">
+                    <button class="btn btn-p2 spawn-btn" onclick="initiateSpawn(p2, 'tank')">
+                        <svg class="icon flip" style="color:#ff5e57" viewBox="-15 -10 30 20"><rect x="-14" y="-10" width="28" height="6" fill="#1e272e"/><rect x="-14" y="4" width="28" height="6" fill="#1e272e"/><rect x="-12" y="-8" width="24" height="16" fill="currentColor"/><circle cx="0" cy="0" r="8" fill="#ecf0f1"/><rect x="0" y="-3" width="18" height="6" fill="#1e272e"/></svg>
+                        <span>坦克 (O) ¥30</span>
+                    </button>
+                    <button id="upg-p2-tank" class="btn btn-p2 upg-btn" onclick="initiateUpgrade(p2, 'tank')"></button>
+                </div>
+                <div class="unit-row">
+                    <button class="btn btn-p2 spawn-btn" onclick="initiateSpawn(p2, 'artillery')">
+                        <svg class="icon flip" style="color:#ff5e57" viewBox="-15 -15 30 30"><polygon points="-10,8 10,8 0,-2" fill="currentColor"/><g transform="rotate(-36)"><rect x="-4" y="-3" width="22" height="6" fill="#1e272e"/></g></svg>
+                        <span>火炮 (P) ¥20</span>
+                    </button>
+                    <button id="upg-p2-artillery" class="btn btn-p2 upg-btn" onclick="initiateUpgrade(p2, 'artillery')"></button>
+                </div>
+                <div class="unit-row">
+                    <button class="btn btn-p2 spawn-btn" onclick="initiateSpawn(p2, 'airplane')">
+                        <svg class="icon flip" style="color:#ff5e57" viewBox="-15 -15 30 30"><polygon points="12,0 0,-12 -4,-12 4,-3 -10,-3 -14,-8 -14,8 -10,3 4,3 -4,12 0,12" fill="currentColor"/></svg>
+                        <span>飞机 ([) ¥40</span>
+                    </button>
+                    <button id="upg-p2-airplane" class="btn btn-p2 upg-btn" onclick="initiateUpgrade(p2, 'airplane')"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- 纯前端音频合成系统 (避免外部链接失效) ---
+    const bgm = document.getElementById('bgm');
+    const musicBtn = document.getElementById('music-btn');
+    let isMusicPlaying = false;
+    let audioCtx;
+
+    function toggleMusic() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (isMusicPlaying) { 
+            bgm.pause(); 
+            musicBtn.innerText = '🎵 音效与音乐: 关'; 
+        } else { 
+            bgm.play().catch(e => console.log("需交互后播放")); 
+            musicBtn.innerText = '🎵 音效与音乐: 开'; 
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        isMusicPlaying = !isMusicPlaying;
+    }
+
+    // 播放代码合成音效
+    function playWeaponSound(type) {
+        if (!isMusicPlaying || !audioCtx) return;
+        
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        const now = audioCtx.currentTime;
+        
+        if (type === 'infantry') {
+            // 清脆短促的步枪声
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(800, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+            gainNode.gain.setValueAtTime(0.2, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+            osc.start(now); osc.stop(now + 0.1);
+        } else if (type === 'tank') {
+            // 沉闷的低频开炮声
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+            gainNode.gain.setValueAtTime(0.4, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } else if (type === 'artillery') {
+            // 稍长的重炮轰鸣声
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(100, now);
+            osc.frequency.exponentialRampToValueAtTime(20, now + 0.5);
+            gainNode.gain.setValueAtTime(0.5, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+        } else if (type === 'airplane') {
+            // 尖锐的投弹下坠声
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1200, now);
+            osc.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+            gainNode.gain.setValueAtTime(0.3, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now); osc.stop(now + 0.2);
+        } else if (type === 'bunker') {
+            // 地堡重机枪点射
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+            gainNode.gain.setValueAtTime(0.2, now);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+            osc.start(now); osc.stop(now + 0.05);
+        }
+    }
+    // ------------------------------------------
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const GAME_WIDTH = 800; const GAME_HEIGHT = 300;
+
+    function resizeCanvas() {
+        const container = document.getElementById('game-container');
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = container.clientWidth * dpr; canvas.height = container.clientHeight * dpr;
+        canvas.style.width = container.clientWidth + 'px'; canvas.style.height = container.clientHeight + 'px';
+    }
+    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+    let gameOver = false; let isPaused = false; let winner = "";
+
+    const p1 = { id: 'p1', name: '蓝方', x: 50, color: '#0fb9b1', hp: 500, maxHp: 500, money: 100, dir: 1, upgrades: { infantry: 1, tank: 1, artillery: 1, airplane: 1 } };
+    const p2 = { id: 'p2', name: '红方', x: 750, color: '#ff5e57', hp: 500, maxHp: 500, money: 100, dir: -1, upgrades: { infantry: 1, tank: 1, artillery: 1, airplane: 1 } };
+
+    const UNIT_TYPES = {
+        'infantry': { type: 'infantry', name: '步兵', cost: 10, hp: 30, maxHp: 30, dmg: 5, range: 40, speed: 1.2, radius: 10, cd: 30 },
+        'tank':     { type: 'tank', name: '坦克', cost: 30, hp: 120, maxHp: 120, dmg: 15, range: 60, speed: 0.6, radius: 16, cd: 60 },
+        'artillery':{ type: 'artillery', name: '火炮', cost: 20, hp: 20, maxHp: 20, dmg: 25, range: 150, speed: 0.8, radius: 12, cd: 90 },
+        'airplane': { type: 'airplane', name: '飞机', cost: 40, hp: 50, maxHp: 50, dmg: 20, range: 50, speed: 1.8, radius: 14, cd: 40 }
+    };
+
+    let bunkers = [
+        { x: 290, y: 170, owner: p1, hp: 200, maxHp: 200, radius: 20, occupied: false, dmg: 8, range: 120, cd: 20, cooldown: 0, destroyedFlag: false },
+        { x: 510, y: 170, owner: p2, hp: 200, maxHp: 200, radius: 20, occupied: false, dmg: 8, range: 120, cd: 20, cooldown: 0, destroyedFlag: false }
+    ];
+
+    let units = []; let projectiles = []; let airdrops = []; let floatingTexts = [];
+
+    function updateUpgradeUI() {
+        [p1, p2].forEach(p => {
+            ['infantry', 'tank', 'artillery', 'airplane'].forEach(type => {
+                let el = document.getElementById(`upg-${p.id}-${type}`);
+                if (el) {
+                    let level = p.upgrades[type]; let cost = UNIT_TYPES[type].cost * 3 * level;
+                    el.innerHTML = `Lv.${level}<br>升级 ¥${cost}`;
+                }
+            });
+        });
+    }
+    updateUpgradeUI(); 
+
+    const modalOverlay = document.getElementById('math-modal-overlay');
+    const mathTitle = document.getElementById('math-title');
+    const mathQuestion = document.getElementById('math-question');
+    const mathInput = document.getElementById('math-input');
+    
+    let pendingSpawnData = null; let currentMathAnswer = 0;
+
+    function generateMath() {
+        let isAdd = Math.random() > 0.5; let a, b;
+        if (isAdd) {
+            a = Math.floor(Math.random() * 10) + 1; b = Math.floor(Math.random() * 10) + 1;
+            currentMathAnswer = a + b; return `${a} + ${b} = ?`;
+        } else {
+            a = Math.floor(Math.random() * 10) + 10; b = Math.floor(Math.random() * 10) + 1; 
+            currentMathAnswer = a - b; return `${a} - ${b} = ?`;
+        }
+    }
+
+    function initiateSpawn(player, typeName) {
+        if (gameOver || isPaused) return;
+        const stats = UNIT_TYPES[typeName];
+        if (player.money >= stats.cost) {
+            isPaused = true; pendingSpawnData = { player, typeName, cost: stats.cost };
+            mathTitle.innerHTML = `<span style="color:${player.color}">${player.name}</span> 制造 [${stats.name}] 授权`;
+            mathQuestion.innerText = generateMath(); mathInput.value = ''; mathInput.classList.remove('error-shake');
+            modalOverlay.style.display = 'flex'; mathInput.focus();
+        } else { floatingTexts.push({ x: player.x, y: 100, text: `资金不足!`, life: 40, color: '#ff3f34' }); }
+    }
+
+    function initiateUpgrade(player, typeName) {
+        if (gameOver || isPaused) return;
+        const stats = UNIT_TYPES[typeName]; const currentLevel = player.upgrades[typeName];
+        const upgradeCost = stats.cost * 3 * currentLevel;
+        if (player.money >= upgradeCost) {
+            player.money -= upgradeCost; player.upgrades[typeName]++;
+            floatingTexts.push({ x: player.x, y: 120, text: `${stats.name} 升至 Lv.${player.upgrades[typeName]}!`, life: 60, color: '#0be881' });
+            updateUpgradeUI(); 
+        } else { floatingTexts.push({ x: player.x, y: 100, text: `资金不足!`, life: 40, color: '#ff3f34' }); }
+    }
+
+    mathInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            if (parseInt(mathInput.value) === currentMathAnswer) {
+                if (pendingSpawnData) {
+                    let p = pendingSpawnData.player; let type = pendingSpawnData.typeName;
+                    p.money -= pendingSpawnData.cost;
+                    let level = p.upgrades[type]; let stats = UNIT_TYPES[type];
+                    let startY = type === 'airplane' ? 60 + (Math.random() * 40 - 20) : 170 + (Math.random() * 80 - 40);
+                    
+                    units.push({
+                        ...stats, hp: stats.hp * (1 + (level - 1) * 0.3), maxHp: stats.maxHp * (1 + (level - 1) * 0.3),
+                        dmg: stats.dmg * (1 + (level - 1) * 0.3), level: level, 
+                        owner: p, x: p.x + (p.dir * 40), y: startY, originalY: startY, cooldown: 0, enteredBunker: false
+                    });
+                } 
+                closeModal();
+            } else {
+                mathInput.classList.remove('error-shake'); void mathInput.offsetWidth;
+                mathInput.classList.add('error-shake'); mathInput.value = '';
+            }
+        } else if (e.key === 'Escape') { closeModal(); }
+    });
+
+    function closeModal() { modalOverlay.style.display = 'none'; isPaused = false; pendingSpawnData = null; }
+
+    window.addEventListener('keydown', (e) => {
+        if(gameOver || isPaused) return; const key = e.key.toLowerCase();
+        if(key === 'q') initiateSpawn(p1, 'infantry');
+        if(key === 'w') initiateSpawn(p1, 'tank');
+        if(key === 'e') initiateSpawn(p1, 'artillery');
+        if(key === 'r') initiateSpawn(p1, 'airplane'); 
+        
+        if(key === 'i') initiateSpawn(p2, 'infantry');
+        if(key === 'o') initiateSpawn(p2, 'tank');
+        if(key === 'p') initiateSpawn(p2, 'artillery');
+        if(key === '[') initiateSpawn(p2, 'airplane'); 
+    });
+
+    function update() {
+        if (gameOver || isPaused) return; 
+
+        if (Math.random() < 0.002) { airdrops.push({ x: 150 + Math.random() * 500, y: -50, amount: Math.floor(Math.random() * 4 + 4) * 10, landed: false }); }
+
+        for (let i = airdrops.length - 1; i >= 0; i--) {
+            let drop = airdrops[i]; if (drop.y < 170) drop.y += 1.5; else drop.landed = true;
+            let collected = false;
+            for (let u of units) {
+                if (u.type !== 'airplane' && Math.hypot(u.x - drop.x, u.y - drop.y) < u.radius + 20) {
+                    u.owner.money += drop.amount; collected = true;
+                    floatingTexts.push({ x: drop.x, y: drop.y - 20, text: `+¥${drop.amount}`, life: 60, color: '#ffd32a' }); break;
+                }
+            }
+            if (collected) airdrops.splice(i, 1);
+        }
+
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+            let t = floatingTexts[i]; t.life--; t.y -= 0.5; if (t.life <= 0) floatingTexts.splice(i, 1);
+        }
+
+        bunkers.forEach(b => {
+            if (b.hp <= 0) {
+                if (!b.destroyedFlag) {
+                    b.destroyedFlag = true; b.occupied = false;
+                    const killer = b.owner === p1 ? p2 : p1; killer.money += 50;
+                    floatingTexts.push({ x: b.x, y: b.y - 30, text: `+¥50`, life: 60, color: '#ffd32a' });
+                }
+                return;
+            }
+            if (b.occupied) {
+                let target = null; let minDist = Infinity;
+                let allEnemies = units.filter(u => u.owner !== b.owner).concat(bunkers.filter(eb => eb.owner !== b.owner && eb.hp > 0));
+                allEnemies.forEach(enemy => { let dist = Math.abs(enemy.x - b.x); if (dist < minDist) { minDist = dist; target = enemy; } });
+                if (!target) { target = b.owner === p1 ? p2 : p1; minDist = Math.abs(target.x - b.x); }
+
+                if (minDist <= b.range) {
+                    if (b.cooldown <= 0) {
+                        projectiles.push({
+                            x: b.x, y: b.y, startX: b.x, startY: b.y, target: target, targetX: target.x, targetY: target.y,
+                            dmg: b.dmg, type: 'bunker', speed: 15
+                        });
+                        playWeaponSound('bunker'); // ★ 播放地堡开火音效
+                        b.cooldown = b.cd;
+                    } else b.cooldown--; 
+                } else b.cooldown = Math.max(0, b.cooldown - 1);
+            }
+        });
+
+        for (let i = units.length - 1; i >= 0; i--) {
+            let u = units[i];
+            
+            if (u.type === 'infantry') {
+                let myBunker = bunkers.find(b => b.owner === u.owner && b.hp > 0 && !b.occupied);
+                if (myBunker && Math.hypot(u.x - myBunker.x, u.y - myBunker.y) < u.radius + myBunker.radius) {
+                    myBunker.occupied = true; u.enteredBunker = true; u.hp = 0; continue; 
+                }
+            }
+            if (u.hp <= 0) continue;
+
+            let target = null; let minDist = Infinity;
+            
+            let allEnemies = units.filter(enemy => {
+                if (enemy.owner === u.owner) return false;
+                if (enemy.type === 'airplane' && u.type !== 'artillery') return false;
+                return true;
+            }).concat(bunkers.filter(eb => eb.owner !== u.owner && eb.hp > 0));
+
+            allEnemies.forEach(enemy => { let dist = Math.abs(enemy.x - u.x); if (dist < minDist) { minDist = dist; target = enemy; }});
+
+            let enemyBaseX = u.owner === p1 ? p2.x : p1.x; let distToBase = Math.abs(enemyBaseX - u.x);
+            if (minDist > distToBase) { minDist = distToBase; target = u.owner === p1 ? p2 : p1; }
+
+            let blockedByFriend = false;
+            if (u.type !== 'airplane') {
+                for (let other of units) {
+                    if (other.owner === u.owner && other !== u && other.type !== 'airplane') {
+                        let dist = Math.abs(other.x - u.x);
+                        let inFront = u.owner.dir === 1 ? (other.x > u.x) : (other.x < u.x);
+                        let yDist = Math.abs(other.y - u.y);
+                        if (inFront && dist < (u.radius + other.radius + 3) && yDist < 25) { blockedByFriend = true; break; }
+                    }
+                }
+            }
+
+            if (minDist <= u.range) {
+                if (u.cooldown <= 0) {
+                    projectiles.push({
+                        x: u.x, y: u.y, startX: u.x, startY: u.y, target: target, targetX: target.x, targetY: target.y,
+                        dmg: u.dmg, type: u.type, speed: u.type === 'artillery' ? 4 : (u.type === 'infantry' ? 12 : 8)
+                    });
+                    playWeaponSound(u.type); // ★ 播放单位开火音效
+                    u.cooldown = u.cd;
+                } else u.cooldown--; 
+            } else {
+                if (!blockedByFriend) u.x += u.speed * u.owner.dir;
+                
+                if (u.type !== 'airplane') {
+                    let isNearBridge = (u.x > 250 && u.x < 550); let targetY = isNearBridge ? 170 : u.originalY;
+                    if (Math.abs(u.y - targetY) > u.speed) u.y += (targetY > u.y) ? u.speed * 0.8 : -u.speed * 0.8; else u.y = targetY;
+                } else {
+                    if (Math.abs(u.y - u.originalY) > u.speed) u.y += (u.originalY > u.y) ? u.speed * 0.3 : -u.speed * 0.3; else u.y = u.originalY;
+                }
+                
+                u.cooldown = Math.max(0, u.cooldown - 1);
+            }
+        }
+
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            let p = projectiles[i]; let hit = false;
+            if (p.type === 'artillery') {
+                let totalDist = Math.abs(p.targetX - p.startX); if (totalDist === 0) totalDist = 1;
+                let dir = p.targetX > p.startX ? 1 : -1; p.x += dir * p.speed; let currentDist = Math.abs(p.x - p.startX);
+                if (currentDist >= totalDist) hit = true;
+                else { let t = currentDist / totalDist; p.y = p.startY + (p.targetY - p.startY) * t - Math.sin(t * Math.PI) * 60; }
+            } else {
+                let dx = p.target.x - p.x; let dy = p.target.y - p.y; let dist = Math.hypot(dx, dy);
+                if (dist < p.speed) hit = true; else { p.x += (dx / dist) * p.speed; p.y += (dy / dist) * p.speed; }
+            }
+            if (hit) { if (p.target.hp > 0) p.target.hp -= p.dmg; projectiles.splice(i, 1); }
+        }
+
+        for (let i = units.length - 1; i >= 0; i--) {
+            let u = units[i];
+            if (u.hp <= 0) {
+                if (!u.enteredBunker) { const killerPlayer = u.owner === p1 ? p2 : p1; killerPlayer.money += u.cost; }
+                units.splice(i, 1);
+            }
+        }
+
+        if (p1.hp <= 0) { gameOver = true; winner = "红方 (P2) 智勇双全，获得胜利！"; }
+        if (p2.hp <= 0) { gameOver = true; winner = "蓝方 (P1) 智勇双全，获得胜利！"; }
+    }
+
+    // --- 美化绘图逻辑 ---
+    function draw() {
+        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#1e272e'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const scale = Math.min(canvas.width / GAME_WIDTH, canvas.height / GAME_HEIGHT);
+        const offsetX = (canvas.width - GAME_WIDTH * scale) / 2; const offsetY = (canvas.height - GAME_HEIGHT * scale) / 2;
+        ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 4;
+        
+        const grassGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+        grassGrad.addColorStop(0, '#388e3c'); grassGrad.addColorStop(1, '#1b5e20');
+        ctx.fillStyle = grassGrad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+        const riverGrad = ctx.createLinearGradient(340, 0, 460, 0);
+        riverGrad.addColorStop(0, '#0984e3'); riverGrad.addColorStop(0.5, '#74b9ff'); riverGrad.addColorStop(1, '#0984e3');
+        ctx.fillStyle = riverGrad; ctx.fillRect(340, 0, 120, GAME_HEIGHT);
+        
+        ctx.shadowColor = 'transparent'; ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath(); ctx.arc(380, 50, 15, 0, Math.PI); ctx.fill();
+        ctx.beginPath(); ctx.arc(420, 130, 10, 0, Math.PI); ctx.fill();
+        ctx.beginPath(); ctx.arc(370, 240, 20, 0, Math.PI); ctx.fill();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+
+        ctx.fillStyle = '#3e2723'; ctx.fillRect(330, 150, 140, 40); 
+        ctx.fillStyle = '#8d6e63'; for(let px = 333; px < 470; px += 14) { ctx.fillRect(px, 152, 12, 36); }
+        ctx.fillStyle = '#1e110a'; ctx.fillRect(330, 147, 140, 5); ctx.fillRect(330, 188, 140, 5);
+
+        drawBase(p1); drawBase(p2);
+
+        bunkers.forEach(b => {
+            ctx.save(); ctx.translate(b.x, b.y); ctx.scale(b.owner.dir, 1); 
+            if (b.hp > 0) {
+                ctx.fillStyle = '#535c68'; ctx.fillRect(-15, -20, 30, 40); ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+                const topGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 10);
+                topGrad.addColorStop(0, b.owner.color); topGrad.addColorStop(1, '#2f3542');
+                ctx.fillStyle = topGrad; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#1e272e'; ctx.fillRect(0, -6, 22, 12);
+                if (b.occupied) { ctx.fillStyle = '#f1f2f6'; ctx.beginPath(); ctx.arc(2, 0, 4, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#2f3542'; ctx.fillRect(4, -2, 22, 4); } 
+                else { ctx.shadowColor = 'transparent'; ctx.fillStyle = '#f1f2f6'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('空', -2, 4); ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; }
+                ctx.shadowColor = 'transparent'; ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-20, -32, 40, 6);
+                ctx.fillStyle = '#ff4757'; ctx.fillRect(-20, -32, 40 * (b.hp / b.maxHp), 6);
+            } else {
+                ctx.fillStyle = '#2f3542'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
+                ctx.shadowColor = 'transparent'; ctx.fillStyle = '#000'; ctx.globalAlpha = 0.6; ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('废墟', 0, 4); ctx.globalAlpha = 1.0;
+            }
+            ctx.restore();
+        });
+
+        airdrops.forEach(drop => {
+            ctx.save(); ctx.translate(drop.x, drop.y);
+            ctx.fillStyle = '#ff4757'; ctx.fillRect(-12, -12, 24, 24); ctx.fillStyle = '#eccc68'; ctx.fillRect(-12, -3, 24, 6); ctx.fillRect(-3, -12, 6, 24);
+            if (!drop.landed) { ctx.fillStyle = '#f1f2f6'; ctx.beginPath(); ctx.arc(0, -30, 25, Math.PI, 0); ctx.fill(); ctx.strokeStyle = '#f1f2f6'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-25, -30); ctx.lineTo(-10, -12); ctx.moveTo(25, -30); ctx.lineTo(10, -12); ctx.moveTo(0, -30); ctx.lineTo(0, -12); ctx.stroke(); }
+            ctx.restore();
+        });
+
+        units.forEach(u => {
+            ctx.save(); ctx.translate(u.x, u.y); ctx.scale(u.owner.dir, 1); 
+            
+            if (u.type === 'airplane') { ctx.shadowOffsetY = 20; ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(0,0,0,0.3)'; }
+
+            if (u.type === 'infantry') {
+                ctx.fillStyle = u.owner.color; ctx.fillRect(-5, -5, 10, 10); ctx.beginPath(); ctx.arc(0, -7, 6, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#2f3542'; ctx.fillRect(2, -2, 12, 3);
+            } else if (u.type === 'tank') {
+                ctx.fillStyle = '#2f3542'; ctx.fillRect(-15, -11, 30, 7); ctx.fillRect(-15, 4, 30, 7);
+                ctx.fillStyle = u.owner.color; ctx.fillRect(-13, -9, 26, 18);
+                ctx.fillStyle = '#f1f2f6'; ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#2f3542'; ctx.fillRect(0, -3, 20, 6);
+            } else if (u.type === 'artillery') {
+                ctx.fillStyle = u.owner.color; ctx.beginPath(); ctx.moveTo(-12, 10); ctx.lineTo(12, 10); ctx.lineTo(0, -4); ctx.fill();
+                ctx.save(); ctx.rotate(-Math.PI / 5); ctx.fillStyle = '#2f3542'; ctx.fillRect(-4, -4, 26, 8); ctx.restore();
+            } else if (u.type === 'airplane') {
+                ctx.fillStyle = '#2f3542'; ctx.fillRect(-12, -4, 26, 8); 
+                ctx.fillStyle = u.owner.color; 
+                ctx.beginPath(); ctx.moveTo(2, -4); ctx.lineTo(-6, -16); ctx.lineTo(-10, -16); ctx.lineTo(-2, -4); ctx.fill(); 
+                ctx.beginPath(); ctx.moveTo(2, 4); ctx.lineTo(-6, 16); ctx.lineTo(-10, 16); ctx.lineTo(-2, 4); ctx.fill(); 
+                ctx.fillStyle = u.owner.color; ctx.fillRect(-12, -8, 4, 16); 
+                ctx.fillStyle = '#f1f2f6'; ctx.fillRect(6, -2, 5, 4); 
+            }
+            ctx.shadowColor = 'transparent';
+            
+            if(u.level > 1) {
+                ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText(`Lv.${u.level}`, 0, -u.radius - (u.type==='airplane'?10:17));
+            }
+
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-u.radius, -u.radius - 12, u.radius * 2, 4);
+            ctx.fillStyle = '#2ed573'; ctx.fillRect(-u.radius, -u.radius - 12, (u.radius * 2) * (u.hp / u.maxHp), 4);
+            ctx.restore();
+        });
+
+        projectiles.forEach(p => {
+            ctx.save(); ctx.translate(p.x, p.y);
+            ctx.shadowColor = p.type === 'infantry' ? '#eccc68' : (p.type === 'tank' ? '#ff7f50' : '#000'); ctx.shadowBlur = 10;
+            if (p.type !== 'artillery') { ctx.rotate(Math.atan2(p.target.y - p.y, p.target.x - p.x)); }
+            
+            if (p.type === 'infantry') { ctx.fillStyle = '#eccc68'; ctx.fillRect(-5, -1.5, 10, 3); } 
+            else if (p.type === 'tank') { ctx.fillStyle = '#ff7f50'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); } 
+            else if (p.type === 'artillery') { ctx.fillStyle = '#2f3542'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); } 
+            else if (p.type === 'bunker') { ctx.fillStyle = '#ffa502'; ctx.fillRect(-7, -2, 14, 4); } 
+            else if (p.type === 'airplane') { ctx.fillStyle = '#0fb9b1'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); } 
+            
+            ctx.restore();
+        });
+
+        ctx.shadowColor = 'transparent';
+        floatingTexts.forEach(t => {
+            ctx.fillStyle = t.color; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
+            ctx.globalAlpha = t.life / 60; ctx.fillText(t.text, t.x, t.y); ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = 'black'; ctx.lineWidth = 1; ctx.globalAlpha = t.life / 60; ctx.strokeText(t.text, t.x, t.y); ctx.globalAlpha = 1.0;
+        });
+
+        if (gameOver) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            ctx.fillStyle = '#eccc68'; ctx.font = 'bold 45px sans-serif'; ctx.textAlign = 'center'; ctx.shadowColor = '#eccc68'; ctx.shadowBlur = 20;
+            ctx.fillText(winner, GAME_WIDTH/2, GAME_HEIGHT/2);
+            ctx.font = '20px sans-serif'; ctx.fillText('点击右上角 [重启游戏] 再次战斗', GAME_WIDTH/2, GAME_HEIGHT/2 + 50);
+        }
+    }
+
+    function drawBase(player) {
+        ctx.save(); ctx.translate(player.x, 170 + 20); 
+        ctx.fillStyle = player.color; ctx.beginPath(); ctx.moveTo(0, -65); ctx.lineTo(-45, -20); ctx.lineTo(45, -20); ctx.fill(); ctx.fillRect(-35, -20, 70, 75);
+        ctx.fillStyle = '#f1f2f6'; ctx.fillRect(-12, 25, 24, 30);
+        ctx.fillStyle = '#f1f2f6'; ctx.fillRect(-2, -85, 4, 20); ctx.fillStyle = player.color; ctx.beginPath(); ctx.moveTo(2, -85); ctx.lineTo(20, -75); ctx.lineTo(2, -65); ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-35, -95, 70, 8); ctx.fillStyle = '#ff4757'; ctx.fillRect(-35, -95, 70 * (player.hp / player.maxHp), 8);
+        ctx.fillStyle = '#f1f2f6'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(`HP: ${Math.max(0, Math.floor(player.hp))}`, 0, 75);
+        ctx.fillStyle = '#eccc68'; ctx.fillText(`¥: ${Math.floor(player.money)}`, 0, 95);
+        ctx.restore();
+    }
+
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
+    loop();
+</script>
+</body>
+</html>
