@@ -3,666 +3,836 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>双人战争塔防：空天突袭 (全音效火力版)</title>
+    <title>数字玩具大保卫 - 精致UI版</title>
     <style>
-        body {
-            margin: 0; padding: 0; width: 100vw; height: 100vh;
-            background-color: #1e272e; color: #ecf0f1;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex; flex-direction: column; overflow: hidden;
+        :root { --game-ratio: 4 / 3; }
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; background-color: #f0f8ff;
+            font-family: 'Comic Sans MS', 'Arial Rounded MT Bold', sans-serif;
+            user-select: none; display: flex; flex-direction: column;
         }
 
-        .top-header {
-            position: relative; text-align: center; padding: 15px 0;
-            background: linear-gradient(to bottom, #2f3640, #1e272e);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.6); z-index: 20; border-bottom: 2px solid #485460; flex-shrink: 0;
+        /* 顶部信息栏 */
+        #header-container {
+            background-color: #e6f7ff; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            z-index: 10; flex-shrink: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 5px; transition: all 0.3s;
         }
-        .top-header h1 { margin: 0; font-size: 26px; text-shadow: 0 0 10px rgba(255,255,255,0.3); letter-spacing: 2px; }
-        .top-header p { margin: 5px 0 0; font-size: 14px; color: #0be881; font-weight: bold; }
-
-        .utility-btns { position: absolute; top: 50%; right: 20px; transform: translateY(-50%); display: flex; gap: 12px; }
-        .util-btn {
-            background: linear-gradient(135deg, #353b48, #2f3640); color: #d2dae2; border: 1px solid #485460;
-            padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 5px;
+        h1 { color: #ff6b6b; margin: 0; font-size: clamp(16px, 4vw, 24px); line-height: 1.2; }
+        #instruction { color: #666; font-size: 12px; margin: 2px 0; text-align: center; }
+        
+        #stats-wrapper { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        #status-bar { font-size: 16px; color: #333; white-space: nowrap; }
+        #wave-quest-progress {
+            display: flex; gap: 5px; background-color: #fff3cd; padding: 2px 8px;
+            border-radius: 10px; border: 1px solid #ffecb5;
         }
-        .util-btn:hover { background: #d2dae2; color: #1e272e; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.4); }
-        .util-btn:active { transform: translateY(1px); }
+        .quest-group { display: flex; align-items: center; font-size: 12px; }
+        .status-icon { margin-left: 2px; font-weight: bold;}
+        .status-done { color: green; } .status-todo { color: #ccc; } .status-placed { color: blue; }
 
-        .main-layout { display: flex; flex-grow: 1; width: 100%; overflow: hidden; }
-
-        .side-panel {
-            width: 270px; flex-shrink: 0; background: linear-gradient(to bottom, #2f3640, #1e272e);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 15px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); z-index: 10;
+        /* --- 游戏主区域 --- */
+        #game-wrapper {
+            flex-grow: 1; width: 100%; position: relative;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            overflow: hidden; padding: 5px; box-sizing: border-box;
+            background-color: #f0f8ff;
         }
-        .side-panel.left { border-right: 2px solid #485460; }
-        .side-panel.right { border-left: 2px solid #485460; }
 
         #game-container {
-            flex-grow: 1; display: flex; justify-content: center; align-items: center;
-            background: radial-gradient(circle at center, #2f3640, #1e272e); position: relative;
+            position: relative; background-color: #a3d9a5; border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2); overflow: hidden;
+            aspect-ratio: 4 / 3; width: 100%; height: auto;
+            max-width: 800px; max-height: 75%; flex-shrink: 1; 
         }
-        canvas { display: block; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        canvas { display: block; width: 100%; height: 100%; touch-action: manipulation; cursor: crosshair; }
 
-        .commander-title {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 10px; margin: 0 0 20px 0; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); text-align: center;
+        /* --- 悬浮音效按钮 (微型版) --- */
+        #btn-sound { 
+            position: absolute;
+            top: 5px;   /* 更加贴合边缘 */
+            right: 5px; /* 更加贴合边缘 */
+            width: 18px;  /* 缩小至约 1/3 (原44px) */
+            height: 18px; /* 缩小至约 1/3 */
+            background-color: rgba(255, 255, 255, 0.6); /* 稍微增加透明度，减少视觉干扰 */
+            color: #333; 
+            border: 1px solid #999; /* 边框变细 */
+            border-radius: 50%;
+            font-size: 10px; /* 字体缩小 */
+            cursor: pointer;
+            z-index: 25; 
+            display: flex; justify-content: center; align-items: center;
+            padding: 0;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
-        .p1 { color: #0fb9b1; }
-        .p2 { color: #ff5e57; }
-        
-        .controls { display: flex; flex-direction: column; gap: 12px; width: 100%; }
-        .unit-row { display: flex; width: 100%; gap: 6px; }
-        
+        #btn-sound:hover { transform: scale(1.2); background-color: #fff; opacity: 1; }
+        #btn-sound:active { transform: scale(0.9); }
+
+        /* --- 底部控制面板 --- */
+        #ui-control-panel {
+            width: 100%; max-width: 800px; margin-top: 8px; padding: 10px;
+            background: #ffffff; border-radius: 15px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex; justify-content: space-around; align-items: center; 
+            box-sizing: border-box; flex-shrink: 0; z-index: 20;
+        }
+
         .btn {
-            background: linear-gradient(135deg, #353b48, #2f3640); color: #d2dae2; border: 2px solid; border-radius: 8px; cursor: pointer;
-            font-weight: bold; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center;
+            border: none; border-radius: 20px; cursor: pointer; font-weight: bold;
+            box-shadow: 0 4px #ccc; display: flex; align-items: center; justify-content: center;
+            white-space: nowrap; padding: 10px 12px; font-size: 14px;
+            transition: transform 0.1s; background-color: #eee;
         }
-        .btn:hover { background: #d2dae2; color: #1e272e; transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.4); }
-        .btn:active { transform: translateY(1px) scale(0.95); }
-        .btn-p1 { border-color: #0fb9b1; }
-        .btn-p2 { border-color: #ff5e57; }
-
-        .spawn-btn { flex-grow: 1; padding: 12px 6px; flex-direction: row; justify-content: flex-start; gap: 6px; font-size: 14px; }
-        .upg-btn { width: 75px; flex-shrink: 0; padding: 6px; flex-direction: column; justify-content: center; font-size: 12px; gap: 4px; line-height: 1.2; background: linear-gradient(135deg, #485460, #1e272e); }
+        .btn:active { transform: translateY(4px); box-shadow: 0 0 #ccc; }
         
-        .icon { width: 24px; height: 24px; flex-shrink: 0; }
-        .flip { transform: scaleX(-1); }
+        #btn-tier1 { background-color: #4CAF50; color: white; }
+        #btn-tier2 { background-color: #2196F3; color: white; }
+        #btn-tier3 { background-color: #F44336; color: white; }
+        #btn-start { background-color: #FFC107; color: black; margin-left: 5px; flex-grow: 1; font-size: 16px;}
+        
+        /* 拆除按钮样式 */
+        #btn-shovel { background-color: #795548; color: white; margin-left: 5px; }
+        #btn-shovel.active { background-color: #ff0000; box-shadow: inset 0 0 5px #000; transform: scale(0.95); }
+        
+        #drop-alert {
+            position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: gold; padding: 5px 15px; border-radius: 20px;
+            font-size: 14px; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 30;
+        }
 
-        #math-modal-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
-            display: none; justify-content: center; align-items: center; z-index: 100;
+        /* 地图选择相关样式 */
+        #map-selection-modal {
+            display: flex; position: fixed; z-index: 200; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.9);
+            justify-content: center; align-items: center; flex-direction: column; color: white;
+        }
+        #map-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;
+            max-width: 600px; width: 90%; margin-top: 20px;
+        }
+        .map-card {
+            background: #fff; color: #333; border-radius: 10px; padding: 10px;
+            cursor: pointer; text-align: center; transition: transform 0.2s; border: 3px solid #ccc;
+        }
+        .map-card:hover { transform: scale(1.05); border-color: #FFC107; }
+        .map-title { font-weight: bold; font-size: 16px; margin-bottom: 5px; display: block;}
+        .map-preview {
+            width: 100%; height: 60px; background: #a3d9a5; border-radius: 5px;
+            position: relative; margin-bottom: 5px;
+        }
+        .preview-path { position: absolute; height: 4px; background: #c4a484; border-radius: 2px; }
+
+        @media (max-height: 500px) and (orientation: landscape) {
+            h1, #instruction { display: none; }
+            #header-container { padding: 2px 10px; flex-direction: row; justify-content: space-between; height: 30px; }
+            #stats-wrapper { flex-grow: 1; justify-content: space-between; width: 100%; }
+            #game-wrapper { flex-direction: row; align-items: stretch; } 
+            #game-container { max-height: 100%; max-width: 75%; margin-right: 10px; height: 100%; width: auto;}
+            #ui-control-panel { 
+                flex-direction: column; width: auto; max-width: 120px; height: 100%; margin-top: 0; 
+                justify-content: center; gap: 8px; padding: 5px;
+            }
+            .btn { width: 100%; font-size: 12px; padding: 8px 5px; }
+            .icon-emoji { display: none; }
+            #btn-start { margin-left: 0; margin-top: auto; height: auto; white-space: normal; text-align: center;}
+            #map-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        #loading-screen {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background: #a3d9a5; color: white; display: flex; justify-content: center; align-items: center;
+            flex-direction: column; z-index: 50; text-align: center; font-size: 20px;
         }
         #math-modal {
-            background: linear-gradient(135deg, rgba(72, 84, 96, 0.9), rgba(30, 39, 46, 0.9));
-            padding: 30px 50px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: none; position: fixed; z-index: 100; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.6);
+            justify-content: center; align-items: center;
         }
-        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        
-        #math-title { font-size: 20px; margin-bottom: 15px; color: #ffd32a; }
-        #math-question { font-size: 36px; font-weight: bold; margin-bottom: 20px; letter-spacing: 2px; }
-        #math-input {
-            font-size: 24px; padding: 10px; width: 120px; text-align: center;
-            border: 2px solid #0be881; border-radius: 8px; background: rgba(0,0,0,0.3); color: white; outline: none;
+        #modal-content {
+            background-color: #fffbe0; padding: 15px; border-radius: 15px;
+            text-align: center; border: 4px solid #ffb74d; box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            width: 80%; max-width: 400px; max-height: 90vh; overflow-y: auto;
         }
-        #math-input:focus { box-shadow: 0 0 15px rgba(11, 232, 129, 0.5); }
-        .math-tip { margin-top: 15px; font-size: 14px; color: #808e9b; }
-        .error-shake { animation: shake 0.4s; border-color: #ff3f34 !important; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        #question-text { font-size: 24px; margin: 10px 0; color: #333; }
+        #question-visual { font-size: 30px; margin-bottom: 10px; word-break: break-all;}
+        .answer-btn {
+            margin: 5px; padding: 10px 20px; font-size: 20px; background-color: #ffeb3b;
+            border: 2px solid #fbc02d; border-radius: 10px; cursor: pointer; width: 100%; max-width: 80%;
+        }
     </style>
 </head>
 <body>
 
-    <audio id="bgm" loop>
-        <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
-    </audio>
-
-    <div class="top-header">
-        <h1>海陆空阵地战</h1>
-        <p>掌握制空权，实施降维打击！</p>
-        
-        <div class="utility-btns">
-            <button id="music-btn" class="util-btn" onclick="toggleMusic()">🎵 音效与音乐: 关</button>
-            <button class="util-btn" onclick="location.reload()">🔄 重启游戏</button>
+    <div id="header-container">
+        <h1>数字玩具大保卫 (精致UI版)</h1>
+        <div id="instruction">规则：每5波 <span style="color:red">3只Boss</span> | 空间不够？使用<span style="color:#795548">拆除</span></div>
+        <div id="stats-wrapper">
+            <div id="status-bar">
+                <span>❤️ <span id="lives-display">5</span></span>
+                <span style="margin: 0 5px; color:#ccc;">|</span>
+                <span>🌊 波次 <span id="wave-display">1</span></span>
+            </div>
+            <div id="wave-quest-progress">
+                <div class="quest-group">🐻 <span id="q1-quest" class="status-todo status-icon">✗</span><span id="q1-placed" class="status-todo status-icon">⚆</span></div>
+                <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                <div class="quest-group">🦆 <span id="q2-quest" class="status-todo status-icon">✗</span><span id="q2-placed" class="status-todo status-icon">⚆</span></div>
+                <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+                <div class="quest-group">❄️ <span id="q3-quest" class="status-todo status-icon">✗</span><span id="q3-placed" class="status-todo status-icon">⚆</span></div>
+            </div>
         </div>
     </div>
 
-    <div class="main-layout">
-        <div class="side-panel left p1">
-            <h3 class="commander-title">
-                <svg class="icon" style="color:#0fb9b1; width:40px; height:40px;" viewBox="-20 -20 40 40"><polygon points="0,-15 -20,5 20,5" fill="currentColor"/><rect x="-15" y="5" width="30" height="15" fill="currentColor"/><rect x="-5" y="10" width="10" height="10" fill="#ecf0f1"/></svg>
-                <span>蓝方指挥官 (P1)</span>
-            </h3>
-            <div class="controls">
-                <div class="unit-row">
-                    <button class="btn btn-p1 spawn-btn" onclick="initiateSpawn(p1, 'infantry')">
-                        <svg class="icon" style="color:#0fb9b1" viewBox="-10 -10 20 20"><rect x="-4" y="-4" width="8" height="10" fill="currentColor"/><path d="M-5,-4 A5,5 0 0,1 5,-4 Z" fill="currentColor"/><rect x="2" y="-2" width="10" height="3" fill="#ecf0f1"/></svg>
-                        <span>步兵 (Q) ¥10</span>
-                    </button>
-                    <button id="upg-p1-infantry" class="btn btn-p1 upg-btn" onclick="initiateUpgrade(p1, 'infantry')"></button>
+    <div id="map-selection-modal">
+        <h2>🗺️ 请选择战场地形</h2>
+        <div id="map-grid">
+            <div class="map-card" onclick="selectMap('simple1')">
+                <div class="map-preview" style="background: linear-gradient(to right, transparent 0%, transparent 100%);">
+                    <div class="preview-path" style="left:0; top:30px; width:50%;"></div>
+                    <div class="preview-path" style="left:50%; top:30px; height:20px; width:4px;"></div>
+                    <div class="preview-path" style="left:50%; top:50px; width:50%;"></div>
                 </div>
-                <div class="unit-row">
-                    <button class="btn btn-p1 spawn-btn" onclick="initiateSpawn(p1, 'tank')">
-                        <svg class="icon" style="color:#0fb9b1" viewBox="-15 -10 30 20"><rect x="-14" y="-10" width="28" height="6" fill="#1e272e"/><rect x="-14" y="4" width="28" height="6" fill="#1e272e"/><rect x="-12" y="-8" width="24" height="16" fill="currentColor"/><circle cx="0" cy="0" r="8" fill="#ecf0f1"/><rect x="0" y="-3" width="18" height="6" fill="#1e272e"/></svg>
-                        <span>坦克 (W) ¥30</span>
-                    </button>
-                    <button id="upg-p1-tank" class="btn btn-p1 upg-btn" onclick="initiateUpgrade(p1, 'tank')"></button>
+                <span class="map-title" style="color:green">简单: 直线突击</span>
+            </div>
+            <div class="map-card" onclick="selectMap('simple2')">
+                <div class="map-preview">
+                    <div class="preview-path" style="left:0; top:10px; width:80%;"></div>
+                    <div class="preview-path" style="left:80%; top:10px; height:40px; width:4px;"></div>
+                    <div class="preview-path" style="left:0; top:50px; width:82%;"></div>
                 </div>
-                <div class="unit-row">
-                    <button class="btn btn-p1 spawn-btn" onclick="initiateSpawn(p1, 'artillery')">
-                        <svg class="icon" style="color:#0fb9b1" viewBox="-15 -15 30 30"><polygon points="-10,8 10,8 0,-2" fill="currentColor"/><g transform="rotate(-36)"><rect x="-4" y="-3" width="22" height="6" fill="#1e272e"/></g></svg>
-                        <span>火炮 (E) ¥20</span>
-                    </button>
-                    <button id="upg-p1-artillery" class="btn btn-p1 upg-btn" onclick="initiateUpgrade(p1, 'artillery')"></button>
+                <span class="map-title" style="color:green">简单: U型弯</span>
+            </div>
+            <div class="map-card" onclick="selectMap('medium1')">
+                <div class="map-preview">
+                    <div class="preview-path" style="left:0; top:10px; width:30%;"></div>
+                    <div class="preview-path" style="left:30%; top:10px; height:20px; width:4px;"></div>
+                    <div class="preview-path" style="left:30%; top:30px; width:40%;"></div>
+                    <div class="preview-path" style="left:70%; top:30px; height:20px; width:4px;"></div>
+                    <div class="preview-path" style="left:70%; top:50px; width:30%;"></div>
                 </div>
-                <div class="unit-row">
-                    <button class="btn btn-p1 spawn-btn" onclick="initiateSpawn(p1, 'airplane')">
-                        <svg class="icon" style="color:#0fb9b1" viewBox="-15 -15 30 30"><polygon points="12,0 0,-12 -4,-12 4,-3 -10,-3 -14,-8 -14,8 -10,3 4,3 -4,12 0,12" fill="currentColor"/></svg>
-                        <span>飞机 (R) ¥40</span>
-                    </button>
-                    <button id="upg-p1-airplane" class="btn btn-p1 upg-btn" onclick="initiateUpgrade(p1, 'airplane')"></button>
+                <span class="map-title" style="color:blue">中等: 阶梯</span>
+            </div>
+            <div class="map-card" onclick="selectMap('medium2')">
+                <div class="map-preview">
+                    <div class="preview-path" style="left:0; top:50px; width:20%;"></div>
+                    <div class="preview-path" style="left:20%; top:10px; height:40px; width:4px;"></div>
+                    <div class="preview-path" style="left:20%; top:10px; width:60%;"></div>
+                    <div class="preview-path" style="left:80%; top:10px; height:40px; width:4px;"></div>
+                    <div class="preview-path" style="left:80%; top:50px; width:20%;"></div>
                 </div>
+                <span class="map-title" style="color:blue">中等: 拱门</span>
+            </div>
+            <div class="map-card" onclick="selectMap('hard1')">
+                <div class="map-preview">
+                    <div class="preview-path" style="left:0; top:10px; width:90%;"></div>
+                    <div class="preview-path" style="left:90%; top:10px; height:20px; width:4px;"></div>
+                    <div class="preview-path" style="left:10%; top:30px; width:82%;"></div>
+                    <div class="preview-path" style="left:10%; top:30px; height:20px; width:4px;"></div>
+                    <div class="preview-path" style="left:10%; top:50px; width:90%;"></div>
+                </div>
+                <span class="map-title" style="color:red">复杂: S型蛇道</span>
+            </div>
+            <div class="map-card" onclick="selectMap('hard2')">
+                <div class="map-preview">
+                    <div class="preview-path" style="left:0; top:30px; width:20%;"></div>
+                    <div class="preview-path" style="left:20%; top:10px; height:40px; width:4px;"></div>
+                    <div class="preview-path" style="left:20%; top:50px; width:20%;"></div>
+                    <div class="preview-path" style="left:40%; top:10px; height:40px; width:4px;"></div>
+                    <div class="preview-path" style="left:40%; top:10px; width:20%;"></div>
+                    <div class="preview-path" style="left:60%; top:10px; height:40px; width:4px;"></div>
+                    <div class="preview-path" style="left:60%; top:50px; width:40%;"></div>
+                </div>
+                <span class="map-title" style="color:red">复杂: 锯齿</span>
             </div>
         </div>
+    </div>
 
+    <div id="game-wrapper">
         <div id="game-container">
-            <canvas id="gameCanvas"></canvas>
-            <div id="math-modal-overlay">
-                <div id="math-modal">
-                    <div id="math-title">军火库密码验证</div>
-                    <div id="math-question">5 + 8 = ?</div>
-                    <input type="number" id="math-input" autocomplete="off" placeholder="输入答案">
-                    <div class="math-tip">按 <b>Enter</b> 确认，按 <b>Esc</b> 取消</div>
-                </div>
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            
+            <button id="btn-sound" onclick="AudioManager.toggleMute()">🔊</button>
+            
+            <div id="drop-alert">🎁 空投支援到达！</div>
+            <div id="loading-screen">
+                <div>🎮 资源加载中...</div>
+                <div style="font-size: 14px; margin-top:10px;">(请先选择地图)</div>
             </div>
         </div>
 
-        <div class="side-panel right p2">
-            <h3 class="commander-title">
-                <svg class="icon" style="color:#ff5e57; width:40px; height:40px;" viewBox="-20 -20 40 40"><polygon points="0,-15 -20,5 20,5" fill="currentColor"/><rect x="-15" y="5" width="30" height="15" fill="currentColor"/><rect x="-5" y="10" width="10" height="10" fill="#ecf0f1"/></svg>
-                <span>红方指挥官 (P2)</span>
-            </h3>
-            <div class="controls">
-                <div class="unit-row">
-                    <button class="btn btn-p2 spawn-btn" onclick="initiateSpawn(p2, 'infantry')">
-                        <svg class="icon flip" style="color:#ff5e57" viewBox="-10 -10 20 20"><rect x="-4" y="-4" width="8" height="10" fill="currentColor"/><path d="M-5,-4 A5,5 0 0,1 5,-4 Z" fill="currentColor"/><rect x="2" y="-2" width="10" height="3" fill="#ecf0f1"/></svg>
-                        <span>步兵 (I) ¥10</span>
-                    </button>
-                    <button id="upg-p2-infantry" class="btn btn-p2 upg-btn" onclick="initiateUpgrade(p2, 'infantry')"></button>
-                </div>
-                <div class="unit-row">
-                    <button class="btn btn-p2 spawn-btn" onclick="initiateSpawn(p2, 'tank')">
-                        <svg class="icon flip" style="color:#ff5e57" viewBox="-15 -10 30 20"><rect x="-14" y="-10" width="28" height="6" fill="#1e272e"/><rect x="-14" y="4" width="28" height="6" fill="#1e272e"/><rect x="-12" y="-8" width="24" height="16" fill="currentColor"/><circle cx="0" cy="0" r="8" fill="#ecf0f1"/><rect x="0" y="-3" width="18" height="6" fill="#1e272e"/></svg>
-                        <span>坦克 (O) ¥30</span>
-                    </button>
-                    <button id="upg-p2-tank" class="btn btn-p2 upg-btn" onclick="initiateUpgrade(p2, 'tank')"></button>
-                </div>
-                <div class="unit-row">
-                    <button class="btn btn-p2 spawn-btn" onclick="initiateSpawn(p2, 'artillery')">
-                        <svg class="icon flip" style="color:#ff5e57" viewBox="-15 -15 30 30"><polygon points="-10,8 10,8 0,-2" fill="currentColor"/><g transform="rotate(-36)"><rect x="-4" y="-3" width="22" height="6" fill="#1e272e"/></g></svg>
-                        <span>火炮 (P) ¥20</span>
-                    </button>
-                    <button id="upg-p2-artillery" class="btn btn-p2 upg-btn" onclick="initiateUpgrade(p2, 'artillery')"></button>
-                </div>
-                <div class="unit-row">
-                    <button class="btn btn-p2 spawn-btn" onclick="initiateSpawn(p2, 'airplane')">
-                        <svg class="icon flip" style="color:#ff5e57" viewBox="-15 -15 30 30"><polygon points="12,0 0,-12 -4,-12 4,-3 -10,-3 -14,-8 -14,8 -10,3 4,3 -4,12 0,12" fill="currentColor"/></svg>
-                        <span>飞机 ([) ¥40</span>
-                    </button>
-                    <button id="upg-p2-airplane" class="btn btn-p2 upg-btn" onclick="initiateUpgrade(p2, 'airplane')"></button>
-                </div>
-            </div>
+        <div id="ui-control-panel">
+            <button id="btn-tier1" class="btn" onclick="askQuestion(1)"><span class="icon-emoji">🐻</span> 简单</button>
+            <button id="btn-tier2" class="btn" onclick="askQuestion(2)"><span class="icon-emoji">🦆</span> 中等</button>
+            <button id="btn-tier3" class="btn" onclick="askQuestion(3)"><span class="icon-emoji">❄️</span> 困难</button>
+            <button id="btn-shovel" class="btn" onclick="toggleShovelMode()">🗑️ 拆除</button>
+            <button id="btn-start" class="btn" onclick="startNextWave()">▶ 下一波</button>
+        </div>
+    </div>
+
+    <div id="math-modal">
+        <div id="modal-content">
+            <div id="question-visual"></div>
+            <div id="question-text">...</div>
+            <div id="answers-container"></div>
         </div>
     </div>
 
 <script>
-    // --- 纯前端音频合成系统 (避免外部链接失效) ---
-    const bgm = document.getElementById('bgm');
-    const musicBtn = document.getElementById('music-btn');
-    let isMusicPlaying = false;
-    let audioCtx;
+    const MAP_LAYOUTS = {
+        simple1: [{x:0, y:200}, {x:400, y:200}, {x:400, y:400}, {x:800, y:400}],
+        simple2: [{x:0, y:100}, {x:700, y:100}, {x:700, y:500}, {x:0, y:500}],
+        medium1: [{x:0, y:100}, {x:250, y:100}, {x:250, y:300}, {x:550, y:300}, {x:550, y:500}, {x:800, y:500}],
+        medium2: [{x:0, y:500}, {x:200, y:500}, {x:200, y:100}, {x:600, y:100}, {x:600, y:500}, {x:800, y:500}],
+        hard1: [{x:0, y:100}, {x:700, y:100}, {x:700, y:300}, {x:100, y:300}, {x:100, y:500}, {x:800, y:500}],
+        hard2: [{x:0, y:300}, {x:200, y:300}, {x:200, y:100}, {x:400, y:100}, {x:400, y:500}, {x:600, y:500}, {x:600, y:300}, {x:800, y:300}]
+    };
+    let path = []; const PATH_WIDTH = 60;
 
-    function toggleMusic() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (isMusicPlaying) { 
-            bgm.pause(); 
-            musicBtn.innerText = '🎵 音效与音乐: 关'; 
-        } else { 
-            bgm.play().catch(e => console.log("需交互后播放")); 
-            musicBtn.innerText = '🎵 音效与音乐: 开'; 
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-        }
-        isMusicPlaying = !isMusicPlaying;
+    function selectMap(mapId) {
+        path = MAP_LAYOUTS[mapId];
+        document.getElementById('map-selection-modal').style.display = 'none';
+        if (!AudioManager.isInit) AudioManager.init();
+        drawMap();
     }
 
-    // 播放代码合成音效
-    function playWeaponSound(type) {
-        if (!isMusicPlaying || !audioCtx) return;
-        
-        const osc = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        osc.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        
-        const now = audioCtx.currentTime;
-        
-        if (type === 'infantry') {
-            // 清脆短促的步枪声
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(800, now);
-            osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
-            gainNode.gain.setValueAtTime(0.2, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-            osc.start(now); osc.stop(now + 0.1);
-        } else if (type === 'tank') {
-            // 沉闷的低频开炮声
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(150, now);
-            osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
-            gainNode.gain.setValueAtTime(0.4, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-            osc.start(now); osc.stop(now + 0.3);
-        } else if (type === 'artillery') {
-            // 稍长的重炮轰鸣声
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(100, now);
-            osc.frequency.exponentialRampToValueAtTime(20, now + 0.5);
-            gainNode.gain.setValueAtTime(0.5, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-            osc.start(now); osc.stop(now + 0.5);
-        } else if (type === 'airplane') {
-            // 尖锐的投弹下坠声
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(1200, now);
-            osc.frequency.exponentialRampToValueAtTime(200, now + 0.2);
-            gainNode.gain.setValueAtTime(0.3, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-            osc.start(now); osc.stop(now + 0.2);
-        } else if (type === 'bunker') {
-            // 地堡重机枪点射
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(600, now);
-            osc.frequency.exponentialRampToValueAtTime(100, now + 0.05);
-            gainNode.gain.setValueAtTime(0.2, now);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
-            osc.start(now); osc.stop(now + 0.05);
+    const AudioManager = {
+        ctx: null, bgm: null, isMuted: false, isInit: false,
+        init: function() {
+            if (this.isInit) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+            this.bgm = new Audio('https://opengameart.org/sites/default/files/Rolemusic_-_02_-_May.mp3'); 
+            this.bgm.loop = true; this.bgm.volume = 0.4;
+            this.isInit = true; this.playBGM();
+        },
+        playBGM: function() {
+            if (this.isMuted || !this.bgm) return;
+            this.bgm.play().catch(e => console.log("等待交互..."));
+        },
+        toggleMute: function() {
+            if (!this.isInit) { this.init(); return; }
+            this.isMuted = !this.isMuted;
+            const btn = document.getElementById('btn-sound');
+            if (this.isMuted) {
+                btn.innerText = '🔇'; btn.style.opacity = "0.7"; if(this.bgm) this.bgm.pause();
+            } else {
+                btn.innerText = '🔊'; btn.style.opacity = "1.0";
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                this.playBGM();
+            }
+        },
+        playShoot: function() {
+            if (this.isMuted || !this.ctx) return;
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(800, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
+            gain.gain.setValueAtTime(0.1, t); gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            osc.start(t); osc.stop(t + 0.15);
+        },
+        playCorrect: function() {
+            if (this.isMuted || !this.ctx) return;
+            if (this.ctx.state === 'suspended') this.ctx.resume();
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.type = 'sine'; osc.frequency.setValueAtTime(1000, t);
+            gain.gain.setValueAtTime(0.1, t); gain.gain.linearRampToValueAtTime(0, t + 0.5);
+            osc.start(t); osc.stop(t + 0.5);
+        },
+        playDrop: function() { 
+            if (this.isMuted || !this.ctx) return;
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.type = 'square'; osc.frequency.setValueAtTime(400, t); osc.frequency.linearRampToValueAtTime(600, t+0.1);
+            gain.gain.setValueAtTime(0.1, t); gain.gain.linearRampToValueAtTime(0, t + 0.2);
+            osc.start(t); osc.stop(t + 0.2);
+        }
+    };
+
+    const ASSETS_URLS = {
+        grass: '/images/grass.jpg', pathTexture: '/images/road.jpg', toybox: '/images/gamebox.png',
+        monster: '/images/thief.png', teddy: '/images/teddy-bear.png', duck: '/images/rubber-duck.png', freezer: '/images/freezer-safe.png' 
+    };
+    const loadedImages = {}; let assetsLoadedCount = 0; const totalAssets = Object.keys(ASSETS_URLS).length;
+    function preloadAssets(callback) {
+        for (let key in ASSETS_URLS) {
+            const img = new Image();
+            img.onload = () => { img.loadedSuccessfully = true; assetsLoadedCount++; checkAllLoaded(callback); };
+            img.onerror = () => { img.loadedSuccessfully = false; assetsLoadedCount++; checkAllLoaded(callback); };
+            img.crossOrigin = "Anonymous"; img.src = ASSETS_URLS[key]; loadedImages[key] = img;
         }
     }
-    // ------------------------------------------
+    function checkAllLoaded(callback) {
+        if (assetsLoadedCount === totalAssets) { setTimeout(() => { document.getElementById('loading-screen').style.display = 'none'; callback(); }, 300); }
+    }
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const GAME_WIDTH = 800; const GAME_HEIGHT = 300;
+    const GAME_WIDTH = 800; const GAME_HEIGHT = 600;
 
-    function resizeCanvas() {
-        const container = document.getElementById('game-container');
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = container.clientWidth * dpr; canvas.height = container.clientHeight * dpr;
-        canvas.style.width = container.clientWidth + 'px'; canvas.style.height = container.clientHeight + 'px';
-    }
-    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+    let gameState = 'PREP'; let lives = 5; let wave = 1; 
+    let placingTowerTier = 0; 
+    let isBonusPlacement = false; 
+    let isShovelMode = false; 
 
-    let gameOver = false; let isPaused = false; let winner = "";
+    let dropsInCurrentWave = 0;
+    const MAX_DROPS_PER_WAVE = 5; 
 
-    const p1 = { id: 'p1', name: '蓝方', x: 50, color: '#0fb9b1', hp: 500, maxHp: 500, money: 100, dir: 1, upgrades: { infantry: 1, tank: 1, artillery: 1, airplane: 1 } };
-    const p2 = { id: 'p2', name: '红方', x: 750, color: '#ff5e57', hp: 500, maxHp: 500, money: 100, dir: -1, upgrades: { infantry: 1, tank: 1, artillery: 1, airplane: 1 } };
+    let waveQuestStatus = { 1: false, 2: false, 3: false };
+    let wavePlacementStatus = { 1: false, 2: false, 3: false };
+    let towers = []; let enemies = []; let projectiles = [];
+    let supplyDrops = []; 
 
-    const UNIT_TYPES = {
-        'infantry': { type: 'infantry', name: '步兵', cost: 10, hp: 30, maxHp: 30, dmg: 5, range: 40, speed: 1.2, radius: 10, cd: 30 },
-        'tank':     { type: 'tank', name: '坦克', cost: 30, hp: 120, maxHp: 120, dmg: 15, range: 60, speed: 0.6, radius: 16, cd: 60 },
-        'artillery':{ type: 'artillery', name: '火炮', cost: 20, hp: 20, maxHp: 20, dmg: 25, range: 150, speed: 0.8, radius: 12, cd: 90 },
-        'airplane': { type: 'airplane', name: '飞机', cost: 40, hp: 50, maxHp: 50, dmg: 20, range: 50, speed: 1.8, radius: 14, cd: 40 }
+    const TOWER_STATS = {
+        1: { color: '#4CAF50', range: 120, damage: 7.2, cooldown: 60, name: "泰迪熊", imgKey: 'teddy' },
+        2: { color: '#2196F3', range: 150, damage: 18.1, cooldown: 50, name: "橡皮鸭", imgKey: 'duck' },
+        3: { color: '#F44336', range: 180, damage: 38.5, cooldown: 40, name: "冷冻机", imgKey: 'freezer' }
     };
 
-    let bunkers = [
-        { x: 290, y: 170, owner: p1, hp: 200, maxHp: 200, radius: 20, occupied: false, dmg: 8, range: 120, cd: 20, cooldown: 0, destroyedFlag: false },
-        { x: 510, y: 170, owner: p2, hp: 200, maxHp: 200, radius: 20, occupied: false, dmg: 8, range: 120, cd: 20, cooldown: 0, destroyedFlag: false }
-    ];
-
-    let units = []; let projectiles = []; let airdrops = []; let floatingTexts = [];
-
-    function updateUpgradeUI() {
-        [p1, p2].forEach(p => {
-            ['infantry', 'tank', 'artillery', 'airplane'].forEach(type => {
-                let el = document.getElementById(`upg-${p.id}-${type}`);
-                if (el) {
-                    let level = p.upgrades[type]; let cost = UNIT_TYPES[type].cost * 3 * level;
-                    el.innerHTML = `Lv.${level}<br>升级 ¥${cost}`;
-                }
-            });
-        });
+    class SupplyDrop {
+        constructor() {
+            this.x = Math.random() * (GAME_WIDTH - 100) + 50; 
+            this.y = -60 - Math.random() * 100; 
+            this.targetY = Math.random() * (GAME_HEIGHT - 100) + 50; 
+            this.tier = Math.floor(Math.random() * 3) + 1; 
+            this.speed = 1.0; this.landed = false; this.size = 40; this.angle = 0; 
+        }
+        update() {
+            if (this.y < this.targetY) { this.y += this.speed; this.angle = Math.sin(this.y * 0.05) * 0.2; } else { this.landed = true; }
+        }
+        draw() {
+            ctx.save(); ctx.translate(this.x, this.y);
+            if (!this.landed) {
+                ctx.rotate(this.angle); ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(0, -30, 30, Math.PI, 0); ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.moveTo(-30, -30); ctx.lineTo(0, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(30, -30); ctx.lineTo(0, 0); ctx.stroke();
+            } else { const scale = 1 + Math.sin(Date.now() * 0.01) * 0.1; ctx.scale(scale, scale); }
+            ctx.fillStyle = '#FF9800'; ctx.fillRect(-20, -20, 40, 40);
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(-20, -20, 40, 40);
+            const stats = TOWER_STATS[this.tier]; const img = loadedImages[stats.imgKey];
+            if (img && img.loadedSuccessfully) { ctx.drawImage(img, -15, -15, 30, 30); } else { ctx.fillStyle = stats.color; ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill(); }
+            ctx.restore();
+        }
     }
-    updateUpgradeUI(); 
 
-    const modalOverlay = document.getElementById('math-modal-overlay');
-    const mathTitle = document.getElementById('math-title');
-    const mathQuestion = document.getElementById('math-question');
-    const mathInput = document.getElementById('math-input');
-    
-    let pendingSpawnData = null; let currentMathAnswer = 0;
+    class Tower {
+        constructor(x, y, tier) {
+            this.x = x; this.y = y; this.tier = tier;
+            this.stats = TOWER_STATS[tier]; this.fireTimer = 0; this.radius = 25; 
+            this.image = loadedImages[this.stats.imgKey];
+        }
+        update() {
+            if (this.fireTimer > 0) this.fireTimer--;
+            if (this.fireTimer === 0 && enemies.length > 0) {
+                const target = this.findTarget();
+                if (target) { this.fire(target); this.fireTimer = this.stats.cooldown; }
+            }
+        }
+        findTarget() {
+            let closestEnemy = null; let minDistance = this.stats.range;
+            for (const enemy of enemies) {
+                if (enemy.health <= 0) continue;
+                const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+                if (dist < minDistance) { closestEnemy = enemy; minDistance = dist; }
+            }
+            return closestEnemy;
+        }
+        fire(target) { 
+            const damageMultiplier = Math.pow(1.15, wave - 1); 
+            const actualDamage = this.stats.damage * damageMultiplier;
+            projectiles.push(new Projectile(this.x, this.y, target, actualDamage, this.stats.color)); 
+            AudioManager.playShoot();
+        }
+        draw() {
+            if (this.image && this.image.loadedSuccessfully) {
+                ctx.drawImage(this.image, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+            } else {
+                ctx.fillStyle = this.stats.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+    }
 
-    function generateMath() {
-        let isAdd = Math.random() > 0.5; let a, b;
-        if (isAdd) {
-            a = Math.floor(Math.random() * 10) + 1; b = Math.floor(Math.random() * 10) + 1;
-            currentMathAnswer = a + b; return `${a} + ${b} = ?`;
+    class Enemy {
+        constructor(health, speed, defense, isBoss = false) {
+            this.x = path[0].x; this.y = path[0].y; this.pathIndex = 0;
+            this.health = health; this.maxHealth = health; this.speed = speed; this.defense = defense; 
+            this.isBoss = isBoss;
+            this.size = isBoss ? 90 : 60; this.color = isBoss ? '#800000' : '#888'; 
+            this.image = loadedImages['monster'];
+        }
+        update() {
+            if (this.health <= 0) return true;
+            if (this.pathIndex < path.length - 1) {
+                let target = path[this.pathIndex + 1];
+                let dist = Math.hypot(target.x - this.x, target.y - this.y);
+                if (dist < this.speed) { 
+                    this.pathIndex++; 
+                } else { 
+                    this.x += ((target.x - this.x) / dist) * this.speed; 
+                    this.y += ((target.y - this.y) / dist) * this.speed; 
+                }
+            } else { lives -= this.isBoss ? 3 : 1; updateUI(); return true; }
+            return false;
+        }
+        draw() {
+            if (this.image && this.image.loadedSuccessfully) {
+                ctx.drawImage(this.image, this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+            } else {
+                ctx.fillStyle = this.color; ctx.fillRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+            }
+            ctx.fillStyle = 'red'; ctx.fillRect(this.x - this.size/2, this.y - this.size/2 - 10, this.size, 5);
+            ctx.fillStyle = '#0f0'; ctx.fillRect(this.x - this.size/2, this.y - this.size/2 - 10, this.size * (this.health / this.maxHealth), 5);
+            if (this.isBoss) {
+                ctx.fillStyle = 'yellow'; ctx.font = '20px Arial'; ctx.textAlign = 'center'; ctx.fillText("BOSS", this.x, this.y - this.size/2 - 15);
+            }
+        }
+    }
+
+    class Projectile {
+        constructor(x, y, target, damage, color) {
+            this.x = x; this.y = y; this.target = target; this.damage = damage; this.color = color; this.speed = 10; this.markedForDeletion = false;
+        }
+        update() {
+            if(this.target.health <=0) { this.markedForDeletion = true; return; }
+            let dist = Math.hypot(this.target.x - this.x, this.target.y - this.y);
+            if (dist < this.speed + this.target.size/2) { 
+                let actualDamage = Math.max(1, this.damage - this.target.defense);
+                this.target.health -= actualDamage; this.markedForDeletion = true; 
+            } else { 
+                this.x += ((this.target.x - this.x) / dist) * this.speed; this.y += ((this.target.y - this.y) / dist) * this.speed; 
+            }
+        }
+        draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, 8, 0, Math.PI * 2); ctx.fill(); }
+    }
+
+    function gameLoop() {
+        ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        drawMap(); 
+        if (lives <= 0) { drawGameOver(); return; }
+        
+        for (let i = enemies.length - 1; i >= 0; i--) { if (enemies[i].update()) { enemies.splice(i, 1); } }
+        for (let i = projectiles.length - 1; i >= 0; i--) { projectiles[i].update(); if (projectiles[i].markedForDeletion) projectiles.splice(i, 1); }
+        for (let i = supplyDrops.length - 1; i >= 0; i--) { supplyDrops[i].update(); }
+
+        if (enemies.length === 0 && gameState === 'DEFEND') {
+            gameState = 'PREP'; wave++; resetWaveStates(); updateUI();
+            dropsInCurrentWave = 0; 
+            const btn = document.getElementById('btn-start'); btn.disabled = false; btn.innerText = "▶ 下一波";
+        }
+        
+        supplyDrops.forEach(d => { if(d.landed) d.draw(); }); 
+        enemies.forEach(e => e.draw());
+        towers.forEach(t => { t.update(); t.draw(); });
+        projectiles.forEach(p => p.draw());
+        supplyDrops.forEach(d => { if(!d.landed) d.draw(); }); 
+        
+        if (isShovelMode) {
+            ctx.font = "20px Arial"; ctx.fillStyle = "red"; ctx.fillText("点击玩具以拆除", mouseX + 15, mouseY);
+            canvas.style.cursor = 'no-drop'; 
+        } else if (placingTowerTier > 0) {
+            drawPlacementPreview();
         } else {
-            a = Math.floor(Math.random() * 10) + 10; b = Math.floor(Math.random() * 10) + 1; 
-            currentMathAnswer = a - b; return `${a} - ${b} = ?`;
+            canvas.style.cursor = 'default';
         }
+
+        requestAnimationFrame(gameLoop);
     }
 
-    function initiateSpawn(player, typeName) {
-        if (gameOver || isPaused) return;
-        const stats = UNIT_TYPES[typeName];
-        if (player.money >= stats.cost) {
-            isPaused = true; pendingSpawnData = { player, typeName, cost: stats.cost };
-            mathTitle.innerHTML = `<span style="color:${player.color}">${player.name}</span> 制造 [${stats.name}] 授权`;
-            mathQuestion.innerText = generateMath(); mathInput.value = ''; mathInput.classList.remove('error-shake');
-            modalOverlay.style.display = 'flex'; mathInput.focus();
-        } else { floatingTexts.push({ x: player.x, y: 100, text: `资金不足!`, life: 40, color: '#ff3f34' }); }
-    }
-
-    function initiateUpgrade(player, typeName) {
-        if (gameOver || isPaused) return;
-        const stats = UNIT_TYPES[typeName]; const currentLevel = player.upgrades[typeName];
-        const upgradeCost = stats.cost * 3 * currentLevel;
-        if (player.money >= upgradeCost) {
-            player.money -= upgradeCost; player.upgrades[typeName]++;
-            floatingTexts.push({ x: player.x, y: 120, text: `${stats.name} 升至 Lv.${player.upgrades[typeName]}!`, life: 60, color: '#0be881' });
-            updateUpgradeUI(); 
-        } else { floatingTexts.push({ x: player.x, y: 100, text: `资金不足!`, life: 40, color: '#ff3f34' }); }
-    }
-
-    mathInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            if (parseInt(mathInput.value) === currentMathAnswer) {
-                if (pendingSpawnData) {
-                    let p = pendingSpawnData.player; let type = pendingSpawnData.typeName;
-                    p.money -= pendingSpawnData.cost;
-                    let level = p.upgrades[type]; let stats = UNIT_TYPES[type];
-                    let startY = type === 'airplane' ? 60 + (Math.random() * 40 - 20) : 170 + (Math.random() * 80 - 40);
-                    
-                    units.push({
-                        ...stats, hp: stats.hp * (1 + (level - 1) * 0.3), maxHp: stats.maxHp * (1 + (level - 1) * 0.3),
-                        dmg: stats.dmg * (1 + (level - 1) * 0.3), level: level, 
-                        owner: p, x: p.x + (p.dir * 40), y: startY, originalY: startY, cooldown: 0, enteredBunker: false
-                    });
-                } 
-                closeModal();
-            } else {
-                mathInput.classList.remove('error-shake'); void mathInput.offsetWidth;
-                mathInput.classList.add('error-shake'); mathInput.value = '';
-            }
-        } else if (e.key === 'Escape') { closeModal(); }
-    });
-
-    function closeModal() { modalOverlay.style.display = 'none'; isPaused = false; pendingSpawnData = null; }
-
-    window.addEventListener('keydown', (e) => {
-        if(gameOver || isPaused) return; const key = e.key.toLowerCase();
-        if(key === 'q') initiateSpawn(p1, 'infantry');
-        if(key === 'w') initiateSpawn(p1, 'tank');
-        if(key === 'e') initiateSpawn(p1, 'artillery');
-        if(key === 'r') initiateSpawn(p1, 'airplane'); 
+    function drawMap() {
+        const grassImg = loadedImages.grass;
+        if (grassImg && grassImg.loadedSuccessfully) {
+            const ptrn = ctx.createPattern(grassImg, 'repeat'); ctx.fillStyle = ptrn; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        } else { ctx.fillStyle = '#a3d9a5'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT); }
         
-        if(key === 'i') initiateSpawn(p2, 'infantry');
-        if(key === 'o') initiateSpawn(p2, 'tank');
-        if(key === 'p') initiateSpawn(p2, 'artillery');
-        if(key === '[') initiateSpawn(p2, 'airplane'); 
-    });
+        if (path.length === 0) return;
 
-    function update() {
-        if (gameOver || isPaused) return; 
+        ctx.lineWidth = PATH_WIDTH; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        const pathImg = loadedImages.pathTexture;
+        if (pathImg && pathImg.loadedSuccessfully) { ctx.strokeStyle = ctx.createPattern(pathImg, 'repeat'); } else { ctx.strokeStyle = '#c4a484'; }
+        
+        ctx.beginPath(); ctx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        ctx.stroke();
+        
+        const endPt = path[path.length-1];
+        const toyboxImg = loadedImages.toybox; 
+        if (toyboxImg && toyboxImg.loadedSuccessfully) {
+            ctx.drawImage(toyboxImg, endPt.x - 35, endPt.y - 35, 70, 70);
+        } else {
+            ctx.fillStyle = '#ff6b6b'; ctx.fillRect(endPt.x-30, endPt.y-30, 60, 60);
+        }
+    }
 
-        if (Math.random() < 0.002) { airdrops.push({ x: 150 + Math.random() * 500, y: -50, amount: Math.floor(Math.random() * 4 + 4) * 10, landed: false }); }
+    function drawGameOver() {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0,0,GAME_WIDTH, GAME_HEIGHT);
+        ctx.fillStyle = 'white'; ctx.font = '50px Comic Sans MS'; ctx.textAlign = 'center';
+        ctx.fillText("游戏结束", GAME_WIDTH/2, GAME_HEIGHT/2);
+        ctx.font = '30px Comic Sans MS'; ctx.fillText("点击刷新重来", GAME_WIDTH/2, GAME_HEIGHT/2 + 60);
+        canvas.addEventListener('click', () => location.reload(), {once:true});
+    }
 
-        for (let i = airdrops.length - 1; i >= 0; i--) {
-            let drop = airdrops[i]; if (drop.y < 170) drop.y += 1.5; else drop.landed = true;
-            let collected = false;
-            for (let u of units) {
-                if (u.type !== 'airplane' && Math.hypot(u.x - drop.x, u.y - drop.y) < u.radius + 20) {
-                    u.owner.money += drop.amount; collected = true;
-                    floatingTexts.push({ x: drop.x, y: drop.y - 20, text: `+¥${drop.amount}`, life: 60, color: '#ffd32a' }); break;
+    function drawPlacementPreview() {
+        const stats = TOWER_STATS[placingTowerTier];
+        const radius = 25;
+        // 注意：这里的绘制是相对于Canvas内部坐标的
+        ctx.font = "20px Arial"; ctx.fillStyle = "white"; ctx.strokeStyle = "black"; ctx.lineWidth = 3;
+        
+        let text = "点击放置";
+        if(isBonusPlacement) { ctx.fillStyle = "#FFD700"; text = "★ 空投奖励放置 ★"; }
+        ctx.strokeText(text, mouseX, mouseY - 40); ctx.fillText(text, mouseX, mouseY - 40);
+        
+        ctx.globalAlpha = 0.6;
+        if (loadedImages[stats.imgKey] && loadedImages[stats.imgKey].loadedSuccessfully) {
+             ctx.drawImage(loadedImages[stats.imgKey], mouseX - radius, mouseY - radius, radius * 2, radius * 2);
+        } else {
+             ctx.fillStyle = stats.color; ctx.beginPath(); ctx.arc(mouseX, mouseY, radius, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+        ctx.beginPath(); ctx.arc(mouseX, mouseY, stats.range, 0, Math.PI*2);
+        ctx.strokeStyle = isBonusPlacement ? "#FFD700" : stats.color; 
+        ctx.setLineDash([5, 5]); ctx.lineWidth=2; ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    function updateUI() {
+        document.getElementById('lives-display').innerText = lives;
+        document.getElementById('wave-display').innerText = wave;
+        updateQuestUI('q1', 1); updateQuestUI('q2', 2); updateQuestUI('q3', 3);
+    }
+    function updateQuestUI(prefix, tier) {
+        const qEl = document.getElementById(prefix + '-quest');
+        const pEl = document.getElementById(prefix + '-placed');
+        qEl.innerText = waveQuestStatus[tier] ? '✓' : '✗';
+        qEl.className = waveQuestStatus[tier] ? 'status-done status-icon' : 'status-todo status-icon';
+        pEl.innerText = wavePlacementStatus[tier] ? '✓' : '⚆';
+        pEl.className = wavePlacementStatus[tier] ? 'status-placed status-icon' : 'status-todo status-icon';
+    }
+    function resetWaveStates() {
+        waveQuestStatus = {1:false, 2:false, 3:false};
+        wavePlacementStatus = {1:false, 2:false, 3:false};
+    }
+
+    let mouseX = 0; let mouseY = 0;
+    function getGameCoordinates(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = GAME_WIDTH / rect.width;
+        const scaleY = GAME_HEIGHT / rect.height;
+        return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
+    function handleMove(clientX, clientY) {
+        const pos = getGameCoordinates(clientX, clientY);
+        mouseX = pos.x; mouseY = pos.y;
+    }
+    function checkPathCollision(x, y) {
+        if(path.length === 0) return false;
+        ctx.beginPath(); ctx.lineWidth = PATH_WIDTH;
+        ctx.moveTo(path[0].x, path[0].y);
+        for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+        return ctx.isPointInStroke(x, y);
+    }
+
+    function toggleShovelMode() {
+        isShovelMode = !isShovelMode;
+        placingTowerTier = 0; 
+        const btn = document.getElementById('btn-shovel');
+        if (isShovelMode) {
+            btn.classList.add('active');
+            btn.innerHTML = "❌ 取消";
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = "🗑️ 拆除";
+        }
+    }
+
+    function handleClick(clientX, clientY) {
+        if (!AudioManager.isInit) AudioManager.init();
+        if (lives <= 0) return;
+        
+        const pos = getGameCoordinates(clientX, clientY);
+        const clickX = pos.x; const clickY = pos.y;
+
+        if (isShovelMode) {
+            for (let i = towers.length - 1; i >= 0; i--) {
+                const t = towers[i];
+                if (Math.hypot(t.x - clickX, t.y - clickY) < 30) {
+                    towers.splice(i, 1); 
+                    toggleShovelMode(); 
+                    return;
                 }
             }
-            if (collected) airdrops.splice(i, 1);
+            return;
         }
 
-        for (let i = floatingTexts.length - 1; i >= 0; i--) {
-            let t = floatingTexts[i]; t.life--; t.y -= 0.5; if (t.life <= 0) floatingTexts.splice(i, 1);
+        for (let i = supplyDrops.length - 1; i >= 0; i--) {
+            const drop = supplyDrops[i];
+            if (drop.landed && Math.hypot(drop.x - clickX, drop.y - clickY) < 40) {
+                AudioManager.playDrop();
+                placingTowerTier = drop.tier;
+                isBonusPlacement = true; 
+                supplyDrops.splice(i, 1);
+                canvas.style.cursor = 'grabbing';
+                return; 
+            }
         }
 
-        bunkers.forEach(b => {
-            if (b.hp <= 0) {
-                if (!b.destroyedFlag) {
-                    b.destroyedFlag = true; b.occupied = false;
-                    const killer = b.owner === p1 ? p2 : p1; killer.money += 50;
-                    floatingTexts.push({ x: b.x, y: b.y - 30, text: `+¥50`, life: 60, color: '#ffd32a' });
-                }
-                return;
-            }
-            if (b.occupied) {
-                let target = null; let minDist = Infinity;
-                let allEnemies = units.filter(u => u.owner !== b.owner).concat(bunkers.filter(eb => eb.owner !== b.owner && eb.hp > 0));
-                allEnemies.forEach(enemy => { let dist = Math.abs(enemy.x - b.x); if (dist < minDist) { minDist = dist; target = enemy; } });
-                if (!target) { target = b.owner === p1 ? p2 : p1; minDist = Math.abs(target.x - b.x); }
+        if (placingTowerTier === 0) return;
+        
+        let onPath = checkPathCollision(clickX, clickY);
+        let overlap = towers.some(t => Math.hypot(t.x - clickX, t.y - clickY) < 35); 
 
-                if (minDist <= b.range) {
-                    if (b.cooldown <= 0) {
-                        projectiles.push({
-                            x: b.x, y: b.y, startX: b.x, startY: b.y, target: target, targetX: target.x, targetY: target.y,
-                            dmg: b.dmg, type: 'bunker', speed: 15
-                        });
-                        playWeaponSound('bunker'); // ★ 播放地堡开火音效
-                        b.cooldown = b.cd;
-                    } else b.cooldown--; 
-                } else b.cooldown = Math.max(0, b.cooldown - 1);
-            }
-        });
+        if (!onPath && !overlap) {
+            towers.push(new Tower(clickX, clickY, placingTowerTier));
+            if (!isBonusPlacement) { wavePlacementStatus[placingTowerTier] = true; }
+            placingTowerTier = 0; isBonusPlacement = false;
+            canvas.style.cursor = 'crosshair'; updateUI();
+        } else { console.log("无法放置"); }
+    }
+    
+    document.addEventListener('click', () => { if(!AudioManager.isInit) AudioManager.init(); }, {once: true});
+    document.addEventListener('touchstart', () => { if(!AudioManager.isInit) AudioManager.init(); }, {once: true});
 
-        for (let i = units.length - 1; i >= 0; i--) {
-            let u = units[i];
+    window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
+    canvas.addEventListener('mousedown', e => handleClick(e.clientX, e.clientY));
+    canvas.addEventListener('touchmove', e => {
+        if (e.touches.length > 1) return; if (e.cancelable) e.preventDefault(); 
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, {passive: false});
+    canvas.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+            handleClick(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    }, {passive: false});
+
+    // 随机空投：每40秒尝试生成1-3个
+    setInterval(() => {
+        if (lives > 0 && path.length > 0) {
+            // 随机数量 1~3
+            const count = Math.floor(Math.random() * 3) + 1;
             
-            if (u.type === 'infantry') {
-                let myBunker = bunkers.find(b => b.owner === u.owner && b.hp > 0 && !b.occupied);
-                if (myBunker && Math.hypot(u.x - myBunker.x, u.y - myBunker.y) < u.radius + myBunker.radius) {
-                    myBunker.occupied = true; u.enteredBunker = true; u.hp = 0; continue; 
-                }
-            }
-            if (u.hp <= 0) continue;
-
-            let target = null; let minDist = Infinity;
-            
-            let allEnemies = units.filter(enemy => {
-                if (enemy.owner === u.owner) return false;
-                if (enemy.type === 'airplane' && u.type !== 'artillery') return false;
-                return true;
-            }).concat(bunkers.filter(eb => eb.owner !== u.owner && eb.hp > 0));
-
-            allEnemies.forEach(enemy => { let dist = Math.abs(enemy.x - u.x); if (dist < minDist) { minDist = dist; target = enemy; }});
-
-            let enemyBaseX = u.owner === p1 ? p2.x : p1.x; let distToBase = Math.abs(enemyBaseX - u.x);
-            if (minDist > distToBase) { minDist = distToBase; target = u.owner === p1 ? p2 : p1; }
-
-            let blockedByFriend = false;
-            if (u.type !== 'airplane') {
-                for (let other of units) {
-                    if (other.owner === u.owner && other !== u && other.type !== 'airplane') {
-                        let dist = Math.abs(other.x - u.x);
-                        let inFront = u.owner.dir === 1 ? (other.x > u.x) : (other.x < u.x);
-                        let yDist = Math.abs(other.y - u.y);
-                        if (inFront && dist < (u.radius + other.radius + 3) && yDist < 25) { blockedByFriend = true; break; }
-                    }
+            let spawnedCount = 0;
+            for(let k=0; k<count; k++) {
+                if (supplyDrops.length < 5 && dropsInCurrentWave < MAX_DROPS_PER_WAVE) {
+                    supplyDrops.push(new SupplyDrop());
+                    dropsInCurrentWave++;
+                    spawnedCount++;
                 }
             }
 
-            if (minDist <= u.range) {
-                if (u.cooldown <= 0) {
-                    projectiles.push({
-                        x: u.x, y: u.y, startX: u.x, startY: u.y, target: target, targetX: target.x, targetY: target.y,
-                        dmg: u.dmg, type: u.type, speed: u.type === 'artillery' ? 4 : (u.type === 'infantry' ? 12 : 8)
-                    });
-                    playWeaponSound(u.type); // ★ 播放单位开火音效
-                    u.cooldown = u.cd;
-                } else u.cooldown--; 
+            if (spawnedCount > 0) {
+                const alertBox = document.getElementById('drop-alert');
+                alertBox.innerText = `🎁 空投支援 x${spawnedCount} 到达！`;
+                alertBox.style.opacity = '1';
+                setTimeout(() => alertBox.style.opacity = '0', 2000);
+            }
+        }
+    }, 40000); // 40秒
+
+    function startNextWave() {
+        if(path.length === 0) { alert("请先选择地图！"); return; }
+        if (!AudioManager.isInit) AudioManager.init();
+        if (gameState === 'PREP' && (!waveQuestStatus[1] || !waveQuestStatus[2] || !waveQuestStatus[3])) {
+            alert("请先完成本波所有答题任务！"); return;
+        }
+        if (gameState === 'DEFEND') return;
+        
+        gameState = 'DEFEND';
+        const btn = document.getElementById('btn-start'); btn.disabled = true; btn.innerText = "🔥 敌人来袭!";
+
+        const growthFactor = 1.35;
+        let baseCount = Math.round(5 * Math.pow(1.3, wave - 1));
+        let baseHP = Math.round(120 * Math.pow(growthFactor, wave - 1)); 
+        let baseSpeed = Math.min(4.0, 1.2 * Math.pow(1.1, wave - 1));
+        let baseDef = wave < 3 ? 0 : Math.round(5 * Math.pow(1.4, wave - 1));
+
+        const isBossWave = (wave % 5 === 0);
+        if (isBossWave) {
+            baseCount = 3; 
+            baseHP = baseHP * 2.5; 
+            baseSpeed = baseSpeed * 0.7; 
+            baseDef = Math.round(baseDef * 1.5 * 0.7); 
+            btn.innerText = "☠️ BOSS x3!";
+        }
+
+        let spawnInterval = Math.max(400, 1500 - (wave * 80)); 
+        const dmgMul = Math.pow(1.15, wave - 1).toFixed(2);
+        console.log(`第${wave}波: HP=${baseHP}, 攻=${dmgMul}x`);
+
+        for (let i = 0; i < baseCount; i++) {
+            setTimeout(() => {
+                enemies.push(new Enemy(baseHP, baseSpeed, baseDef, isBossWave)); 
+            }, i * spawnInterval);
+        }
+    }
+
+    const modal = document.getElementById('math-modal');
+    const qVis = document.getElementById('question-visual');
+    const qText = document.getElementById('question-text');
+    const ansContainer = document.getElementById('answers-container');
+    let curCorrect = 0; let curTier = 0;
+
+    window.askQuestion = function(tier) {
+        if (!AudioManager.isInit) AudioManager.init();
+        if (isShovelMode) toggleShovelMode(); 
+        if (placingTowerTier !== 0) { alert("请先放置当前玩具！"); return; }
+        if (wavePlacementStatus[tier]) { alert("本波次已放置过该玩具！(请等待空投支援)"); return; }
+        if (waveQuestStatus[tier]) {
+            alert("已答对，请直接放置！");
+            curTier = tier; placingTowerTier = tier; isBonusPlacement = false;
+            canvas.style.cursor = 'grabbing';
+            return;
+        }
+        curTier = tier; modal.style.display = 'flex'; generateQuestion(tier);
+    }
+
+    function generateQuestion(tier) {
+        ansContainer.innerHTML = ''; qVis.innerHTML = ''; let ans = 0;
+        if (tier === 1) { 
+            ans = Math.floor(Math.random()*5)+1; 
+            const emo = ['🍎','🍌','🐱','🐶','🚗'][Math.floor(Math.random()*5)];
+            qVis.innerHTML = (emo + ' ').repeat(ans); qText.innerText = `有多少个 ${emo}？`;
+        } else if (tier === 2) { 
+            let a = Math.floor(Math.random()*5)+1, b = Math.floor(Math.random()*4)+1;
+            ans = a + b; qVis.innerHTML = `${'🔵'.repeat(a)} ➕ ${'🔵'.repeat(b)}`; qText.innerText = `${a} + ${b} = ?`;
+        } else { 
+            if (Math.random()>0.5) {
+                let a = Math.floor(Math.random()*5)+5, b = Math.floor(Math.random()*a);
+                ans = a - b; qVis.innerHTML = `${'🔴'.repeat(a)} ➖ ${'🔴'.repeat(b)}`; qText.innerText = `${a} - ${b} = ?`;
             } else {
-                if (!blockedByFriend) u.x += u.speed * u.owner.dir;
-                
-                if (u.type !== 'airplane') {
-                    let isNearBridge = (u.x > 250 && u.x < 550); let targetY = isNearBridge ? 170 : u.originalY;
-                    if (Math.abs(u.y - targetY) > u.speed) u.y += (targetY > u.y) ? u.speed * 0.8 : -u.speed * 0.8; else u.y = targetY;
+                let n1 = Math.floor(Math.random()*10)+1, n2 = n1; while(n2===n1) n2=Math.floor(Math.random()*10)+1;
+                ans = Math.max(n1, n2); qText.innerText = `哪个数字更大？ ${n1} 还是 ${n2}？`;
+            }
+        }
+        curCorrect = ans;
+        let opts = [ans];
+        while(opts.length < 3) {
+            let w = Math.floor(Math.random()*(ans+4));
+            if(!opts.includes(w) && w >= 0) opts.push(w);
+        }
+        opts.sort(()=>Math.random()-0.5).forEach(o => {
+            const b = document.createElement('button'); b.className = 'answer-btn'; b.innerText = o;
+            b.onclick = () => {
+                if (o === curCorrect) {
+                    modal.style.display = 'none'; waveQuestStatus[curTier] = true; updateUI();
+                    placingTowerTier = curTier; isBonusPlacement = false; 
+                    canvas.style.cursor = 'grabbing';
+                    AudioManager.playCorrect();
                 } else {
-                    if (Math.abs(u.y - u.originalY) > u.speed) u.y += (u.originalY > u.y) ? u.speed * 0.3 : -u.speed * 0.3; else u.y = u.originalY;
+                    b.style.backgroundColor = '#ff6b6b'; setTimeout(()=>b.style.backgroundColor='#ffeb3b', 500);
                 }
-                
-                u.cooldown = Math.max(0, u.cooldown - 1);
-            }
-        }
-
-        for (let i = projectiles.length - 1; i >= 0; i--) {
-            let p = projectiles[i]; let hit = false;
-            if (p.type === 'artillery') {
-                let totalDist = Math.abs(p.targetX - p.startX); if (totalDist === 0) totalDist = 1;
-                let dir = p.targetX > p.startX ? 1 : -1; p.x += dir * p.speed; let currentDist = Math.abs(p.x - p.startX);
-                if (currentDist >= totalDist) hit = true;
-                else { let t = currentDist / totalDist; p.y = p.startY + (p.targetY - p.startY) * t - Math.sin(t * Math.PI) * 60; }
-            } else {
-                let dx = p.target.x - p.x; let dy = p.target.y - p.y; let dist = Math.hypot(dx, dy);
-                if (dist < p.speed) hit = true; else { p.x += (dx / dist) * p.speed; p.y += (dy / dist) * p.speed; }
-            }
-            if (hit) { if (p.target.hp > 0) p.target.hp -= p.dmg; projectiles.splice(i, 1); }
-        }
-
-        for (let i = units.length - 1; i >= 0; i--) {
-            let u = units[i];
-            if (u.hp <= 0) {
-                if (!u.enteredBunker) { const killerPlayer = u.owner === p1 ? p2 : p1; killerPlayer.money += u.cost; }
-                units.splice(i, 1);
-            }
-        }
-
-        if (p1.hp <= 0) { gameOver = true; winner = "红方 (P2) 智勇双全，获得胜利！"; }
-        if (p2.hp <= 0) { gameOver = true; winner = "蓝方 (P1) 智勇双全，获得胜利！"; }
+            };
+            ansContainer.appendChild(b);
+        });
     }
 
-    // --- 美化绘图逻辑 ---
-    function draw() {
-        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#1e272e'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const scale = Math.min(canvas.width / GAME_WIDTH, canvas.height / GAME_HEIGHT);
-        const offsetX = (canvas.width - GAME_WIDTH * scale) / 2; const offsetY = (canvas.height - GAME_HEIGHT * scale) / 2;
-        ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+    preloadAssets(() => { resetWaveStates(); updateUI(); gameLoop(); });
 
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 4;
-        
-        const grassGrad = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
-        grassGrad.addColorStop(0, '#388e3c'); grassGrad.addColorStop(1, '#1b5e20');
-        ctx.fillStyle = grassGrad; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-
-        const riverGrad = ctx.createLinearGradient(340, 0, 460, 0);
-        riverGrad.addColorStop(0, '#0984e3'); riverGrad.addColorStop(0.5, '#74b9ff'); riverGrad.addColorStop(1, '#0984e3');
-        ctx.fillStyle = riverGrad; ctx.fillRect(340, 0, 120, GAME_HEIGHT);
-        
-        ctx.shadowColor = 'transparent'; ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.beginPath(); ctx.arc(380, 50, 15, 0, Math.PI); ctx.fill();
-        ctx.beginPath(); ctx.arc(420, 130, 10, 0, Math.PI); ctx.fill();
-        ctx.beginPath(); ctx.arc(370, 240, 20, 0, Math.PI); ctx.fill();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-
-        ctx.fillStyle = '#3e2723'; ctx.fillRect(330, 150, 140, 40); 
-        ctx.fillStyle = '#8d6e63'; for(let px = 333; px < 470; px += 14) { ctx.fillRect(px, 152, 12, 36); }
-        ctx.fillStyle = '#1e110a'; ctx.fillRect(330, 147, 140, 5); ctx.fillRect(330, 188, 140, 5);
-
-        drawBase(p1); drawBase(p2);
-
-        bunkers.forEach(b => {
-            ctx.save(); ctx.translate(b.x, b.y); ctx.scale(b.owner.dir, 1); 
-            if (b.hp > 0) {
-                ctx.fillStyle = '#535c68'; ctx.fillRect(-15, -20, 30, 40); ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
-                const topGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 10);
-                topGrad.addColorStop(0, b.owner.color); topGrad.addColorStop(1, '#2f3542');
-                ctx.fillStyle = topGrad; ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#1e272e'; ctx.fillRect(0, -6, 22, 12);
-                if (b.occupied) { ctx.fillStyle = '#f1f2f6'; ctx.beginPath(); ctx.arc(2, 0, 4, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#2f3542'; ctx.fillRect(4, -2, 22, 4); } 
-                else { ctx.shadowColor = 'transparent'; ctx.fillStyle = '#f1f2f6'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('空', -2, 4); ctx.shadowColor = 'rgba(0, 0, 0, 0.4)'; }
-                ctx.shadowColor = 'transparent'; ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-20, -32, 40, 6);
-                ctx.fillStyle = '#ff4757'; ctx.fillRect(-20, -32, 40 * (b.hp / b.maxHp), 6);
-            } else {
-                ctx.fillStyle = '#2f3542'; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill();
-                ctx.shadowColor = 'transparent'; ctx.fillStyle = '#000'; ctx.globalAlpha = 0.6; ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('废墟', 0, 4); ctx.globalAlpha = 1.0;
-            }
-            ctx.restore();
-        });
-
-        airdrops.forEach(drop => {
-            ctx.save(); ctx.translate(drop.x, drop.y);
-            ctx.fillStyle = '#ff4757'; ctx.fillRect(-12, -12, 24, 24); ctx.fillStyle = '#eccc68'; ctx.fillRect(-12, -3, 24, 6); ctx.fillRect(-3, -12, 6, 24);
-            if (!drop.landed) { ctx.fillStyle = '#f1f2f6'; ctx.beginPath(); ctx.arc(0, -30, 25, Math.PI, 0); ctx.fill(); ctx.strokeStyle = '#f1f2f6'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-25, -30); ctx.lineTo(-10, -12); ctx.moveTo(25, -30); ctx.lineTo(10, -12); ctx.moveTo(0, -30); ctx.lineTo(0, -12); ctx.stroke(); }
-            ctx.restore();
-        });
-
-        units.forEach(u => {
-            ctx.save(); ctx.translate(u.x, u.y); ctx.scale(u.owner.dir, 1); 
-            
-            if (u.type === 'airplane') { ctx.shadowOffsetY = 20; ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(0,0,0,0.3)'; }
-
-            if (u.type === 'infantry') {
-                ctx.fillStyle = u.owner.color; ctx.fillRect(-5, -5, 10, 10); ctx.beginPath(); ctx.arc(0, -7, 6, Math.PI, 0); ctx.fill(); ctx.fillStyle = '#2f3542'; ctx.fillRect(2, -2, 12, 3);
-            } else if (u.type === 'tank') {
-                ctx.fillStyle = '#2f3542'; ctx.fillRect(-15, -11, 30, 7); ctx.fillRect(-15, 4, 30, 7);
-                ctx.fillStyle = u.owner.color; ctx.fillRect(-13, -9, 26, 18);
-                ctx.fillStyle = '#f1f2f6'; ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#2f3542'; ctx.fillRect(0, -3, 20, 6);
-            } else if (u.type === 'artillery') {
-                ctx.fillStyle = u.owner.color; ctx.beginPath(); ctx.moveTo(-12, 10); ctx.lineTo(12, 10); ctx.lineTo(0, -4); ctx.fill();
-                ctx.save(); ctx.rotate(-Math.PI / 5); ctx.fillStyle = '#2f3542'; ctx.fillRect(-4, -4, 26, 8); ctx.restore();
-            } else if (u.type === 'airplane') {
-                ctx.fillStyle = '#2f3542'; ctx.fillRect(-12, -4, 26, 8); 
-                ctx.fillStyle = u.owner.color; 
-                ctx.beginPath(); ctx.moveTo(2, -4); ctx.lineTo(-6, -16); ctx.lineTo(-10, -16); ctx.lineTo(-2, -4); ctx.fill(); 
-                ctx.beginPath(); ctx.moveTo(2, 4); ctx.lineTo(-6, 16); ctx.lineTo(-10, 16); ctx.lineTo(-2, 4); ctx.fill(); 
-                ctx.fillStyle = u.owner.color; ctx.fillRect(-12, -8, 4, 16); 
-                ctx.fillStyle = '#f1f2f6'; ctx.fillRect(6, -2, 5, 4); 
-            }
-            ctx.shadowColor = 'transparent';
-            
-            if(u.level > 1) {
-                ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
-                ctx.fillText(`Lv.${u.level}`, 0, -u.radius - (u.type==='airplane'?10:17));
-            }
-
-            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-u.radius, -u.radius - 12, u.radius * 2, 4);
-            ctx.fillStyle = '#2ed573'; ctx.fillRect(-u.radius, -u.radius - 12, (u.radius * 2) * (u.hp / u.maxHp), 4);
-            ctx.restore();
-        });
-
-        projectiles.forEach(p => {
-            ctx.save(); ctx.translate(p.x, p.y);
-            ctx.shadowColor = p.type === 'infantry' ? '#eccc68' : (p.type === 'tank' ? '#ff7f50' : '#000'); ctx.shadowBlur = 10;
-            if (p.type !== 'artillery') { ctx.rotate(Math.atan2(p.target.y - p.y, p.target.x - p.x)); }
-            
-            if (p.type === 'infantry') { ctx.fillStyle = '#eccc68'; ctx.fillRect(-5, -1.5, 10, 3); } 
-            else if (p.type === 'tank') { ctx.fillStyle = '#ff7f50'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); } 
-            else if (p.type === 'artillery') { ctx.fillStyle = '#2f3542'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill(); } 
-            else if (p.type === 'bunker') { ctx.fillStyle = '#ffa502'; ctx.fillRect(-7, -2, 14, 4); } 
-            else if (p.type === 'airplane') { ctx.fillStyle = '#0fb9b1'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); } 
-            
-            ctx.restore();
-        });
-
-        ctx.shadowColor = 'transparent';
-        floatingTexts.forEach(t => {
-            ctx.fillStyle = t.color; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
-            ctx.globalAlpha = t.life / 60; ctx.fillText(t.text, t.x, t.y); ctx.globalAlpha = 1.0;
-            ctx.strokeStyle = 'black'; ctx.lineWidth = 1; ctx.globalAlpha = t.life / 60; ctx.strokeText(t.text, t.x, t.y); ctx.globalAlpha = 1.0;
-        });
-
-        if (gameOver) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-            ctx.fillStyle = '#eccc68'; ctx.font = 'bold 45px sans-serif'; ctx.textAlign = 'center'; ctx.shadowColor = '#eccc68'; ctx.shadowBlur = 20;
-            ctx.fillText(winner, GAME_WIDTH/2, GAME_HEIGHT/2);
-            ctx.font = '20px sans-serif'; ctx.fillText('点击右上角 [重启游戏] 再次战斗', GAME_WIDTH/2, GAME_HEIGHT/2 + 50);
-        }
-    }
-
-    function drawBase(player) {
-        ctx.save(); ctx.translate(player.x, 170 + 20); 
-        ctx.fillStyle = player.color; ctx.beginPath(); ctx.moveTo(0, -65); ctx.lineTo(-45, -20); ctx.lineTo(45, -20); ctx.fill(); ctx.fillRect(-35, -20, 70, 75);
-        ctx.fillStyle = '#f1f2f6'; ctx.fillRect(-12, 25, 24, 30);
-        ctx.fillStyle = '#f1f2f6'; ctx.fillRect(-2, -85, 4, 20); ctx.fillStyle = player.color; ctx.beginPath(); ctx.moveTo(2, -85); ctx.lineTo(20, -75); ctx.lineTo(2, -65); ctx.fill();
-        ctx.shadowColor = 'transparent';
-        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(-35, -95, 70, 8); ctx.fillStyle = '#ff4757'; ctx.fillRect(-35, -95, 70 * (player.hp / player.maxHp), 8);
-        ctx.fillStyle = '#f1f2f6'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(`HP: ${Math.max(0, Math.floor(player.hp))}`, 0, 75);
-        ctx.fillStyle = '#eccc68'; ctx.fillText(`¥: ${Math.floor(player.money)}`, 0, 95);
-        ctx.restore();
-    }
-
-    function loop() { update(); draw(); requestAnimationFrame(loop); }
-    loop();
 </script>
 </body>
 </html>
